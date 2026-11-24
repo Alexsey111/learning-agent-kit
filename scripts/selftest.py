@@ -75,6 +75,7 @@ def main() -> int:
         "templates/topic_plan.template.md", "templates/cycle_rules.txt",
         "templates/coverage.template.json",
         "scripts/coverage.py",
+        "scripts/programcheck.py",
         "templates/razbor.template.txt",
         "examples/qa_block_1.txt", "examples/qa_block_1_key.txt",
         "study_example/state.json", "study_example/blocks/block_1.txt",

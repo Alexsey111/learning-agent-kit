@@ -10,8 +10,8 @@
     {"n": 7, "teaches": ["flatten", "(784,)", "(32, 128)"], "handle": "кнопки reshape(32, 784), Linear(784, 128), (784,)"}
   ],
   "questions": {
-    "1": {"asks": ["shape", "sum(axis=0)", "sum(axis=1)", "sum()"]},
-    "2": {"asks": ["@", "broadcasting"]},
-    "3": {"asks": ["flatten", "(32, 128)", "(784,)"]}
+    "1": {"asks": ["shape", "sum(axis=0)", "sum(axis=1)", "sum()"], "cells": ["t1", "t13"]},
+    "2": {"asks": ["@", "broadcasting"], "cells": ["t3", "t4"]},
+    "3": {"asks": ["flatten", "(32, 128)", "(784,)"], "cells": ["t14"]}
   }
 }
