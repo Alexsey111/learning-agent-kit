@@ -236,6 +236,21 @@ def main() -> int:
             check(target.is_file(), f"скрипт по этому пути существует: {m.group(1)}")
         check("--study" in call[0], "передан --study")
 
+    print("6. Лицензия и подпись автора")
+    lic = KIT / "LICENSE"
+    check(lic.is_file(), "LICENSE на месте")
+    if lic.is_file():
+        lt = lic.read_text(encoding="utf-8", errors="replace")
+        check("MIT License" in lt, "это MIT")
+        check("Alexsey111" in lt, "в копирайте есть автор (Alexsey111)")
+    # Подпись в страницах — это и есть исполнение условия MIT в интерфейсе:
+    # копия, которую показывают людям, тянет имя автора с собой.
+    for page in ("trainer/web/app.html", "trainer/web/lesson.html", "trainer/web/game.html"):
+        p = KIT / page
+        text = p.read_text(encoding="utf-8", errors="replace") if p.is_file() else ""
+        check("learning-agent-kit · Алексей Перминов" in text,
+              f"{page}: внизу страницы подпись автора")
+
     print()
     print(f"Итог: ok {len(OK)}, провалов {len(FAIL)}")
     if FAIL:

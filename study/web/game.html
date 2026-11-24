@@ -61,6 +61,7 @@ const R = [
     why:"Флаг меняется в конце первого разговора, поэтому второй заход идёт по другой ветке. Это и есть «выбор с последствием»." }
 ];
 let i = 0, answered = false;
+const CREDIT = `<div style="margin:26px 0 8px;font-size:12px;line-height:1.5;color:#6b7a8d">learning-agent-kit · Алексей Перминов (Alexsey111) · <a href="https://github.com/Alexsey111/learning-agent-kit" style="color:#6b7a8d">исходники</a></div>`;
 
 function render() {
   answered = false;
@@ -69,7 +70,7 @@ function render() {
   document.getElementById('content').innerHTML =
     `<h1>${r.q}</h1><pre>${r.code.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</pre>` +
     `<div id="opts">${r.opts.map((o, k) => `<button data-k="${k}">${o}</button>`).join('')}</div>` +
-    `<div id="fb"></div>`;
+    `<div id="fb"></div>` + CREDIT;
   document.querySelectorAll('#opts button').forEach(b => b.onclick = () => pick(Number(b.dataset.k), b));
   document.getElementById('next').style.display = 'none';
 }

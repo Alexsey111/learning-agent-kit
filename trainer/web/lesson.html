@@ -224,11 +224,12 @@ function s5() {
 }
 
 const SCREENS = [s1, s2, s3, s4, s5];
+const CREDIT = `<div style="margin:26px 0 8px;font-size:12px;line-height:1.5;color:#6b7a8d">learning-agent-kit · Алексей Перминов (Alexsey111) · <a href="https://github.com/Alexsey111/learning-agent-kit" style="color:#6b7a8d">исходники</a></div>`;
 
 function render() {
   const s = SCREENS[screen]();
   document.getElementById("content").innerHTML =
-    `<div class="card"><h2>${s.title}</h2>${s.html}</div>`;
+    `<div class="card"><h2>${s.title}</h2>${s.html}</div>` + CREDIT;
   if (s.mount) s.mount();
   document.querySelectorAll("#steps i").forEach((el, i) => el.className = i <= screen ? "on" : "");
   document.getElementById("hint").textContent = `Экран ${screen + 1} из ${TOTAL}`;

@@ -46,6 +46,7 @@
 
 <script>
 const TOTAL = 5;
+const CREDIT = `<div style="margin:26px 0 8px;font-size:12px;line-height:1.5;color:#6b7a8d">learning-agent-kit · Алексей Перминов (Alexsey111) · <a href="https://github.com/Alexsey111/learning-agent-kit" style="color:#6b7a8d">исходники</a></div>`;
 let cur = 0;
 
 const S = [
@@ -103,7 +104,7 @@ const S = [
 ];
 
 function render() {
-  document.getElementById('content').innerHTML = S[cur];
+  document.getElementById('content').innerHTML = S[cur] + CREDIT;
   document.getElementById('hint').textContent = `Экран ${cur + 1} из ${TOTAL}`;
   document.getElementById('steps').innerHTML = Array.from({length: TOTAL}, (_, i) =>
     `<i class="${i <= cur ? 'on' : ''}"></i>`).join('');

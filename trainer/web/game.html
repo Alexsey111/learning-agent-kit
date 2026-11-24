@@ -46,6 +46,7 @@
 </div>
 
 <script>
+const CREDIT = `<div style="margin:26px 0 8px;font-size:12px;line-height:1.5;color:#6b7a8d">learning-agent-kit · Алексей Перминов (Alexsey111) · <a href="https://github.com/Alexsey111/learning-agent-kit" style="color:#6b7a8d">исходники</a></div>`;
 const SESSION = Number("__SESSION__") || 0;
 
 const ROUNDS = [
@@ -86,7 +87,7 @@ function draw() {
   document.getElementById("tot").textContent = answered;
   if (cur >= ROUNDS.length) return finish();
   const r = ROUNDS[cur];
-  body.innerHTML = `<pre></pre><div class="opts"></div><div class="fb"></div>`;
+  body.innerHTML = `<pre></pre><div class="opts"></div><div class="fb"></div>` + CREDIT;
   body.querySelector("pre").textContent = r.code;
   const opts = body.querySelector(".opts");
   const fb = body.querySelector(".fb");
