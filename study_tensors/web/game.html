@@ -149,7 +149,18 @@ function finish() {
   const go = document.createElement("button");
   go.className = "btn primary";
   go.textContent = "к вопросам блока →";
-  go.onclick = () => { location.href = "/"; };
+  go.onclick = async () => {
+    // тренажёр могли закрыть вместе с чёрным окном — говорим об этом, а не «сайт недоступен»
+    try {
+      const r = await fetch("/", {method: "GET", cache: "no-store"});
+      if (r.ok) location.href = "/";
+      else body.insertAdjacentHTML("beforeend",
+        `<p class="note">Сервер не отвечает: запусти start.cmd заново.</p>`);
+    } catch (e) {
+      body.insertAdjacentHTML("beforeend",
+        `<p class="note">Сервер не отвечает: чёрное окно с тренажёром закрыто. Запусти start.cmd заново.</p>`);
+    }
+  };
   body.appendChild(go);
   progress(true);
 }

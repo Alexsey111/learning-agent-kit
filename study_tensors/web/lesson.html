@@ -47,6 +47,10 @@
   .kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
   .kv div{font-size:15px}
   .kv b{color:var(--acc)}
+  .steps2{margin:10px 0 0;padding-left:22px;font-size:15px;color:#cfd6e0}
+  .steps2 li{margin:0 0 6px}
+  .steps2 b{color:var(--acc)}
+  .stop{border-color:var(--warn)}
   .nav{display:flex;gap:10px;justify-content:space-between;margin-top:6px}
   .bar{position:fixed;left:0;right:0;bottom:0;background:#0e1116;border-top:1px solid var(--line);
        padding:10px 20px;display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;
@@ -58,7 +62,7 @@
 <body>
 <div class="wrap">
   <h1>Урок 0 — Тензоры: что это, зачем и как с ними работать</h1>
-  <div class="sub">Пять экранов, 12–15 минут. Здесь всё можно нажимать: каждая ручка считает по-настоящему, на памяти проверять не нужно.</div>
+  <div class="sub">Пять экранов, 12–15 минут. Здесь всё можно нажимать: каждая ручка считает по-настоящему, на памяти проверять не нужно. Чёрное окно с тренажёром не закрывайте — оно и есть сервер.</div>
   <div class="steps" id="steps"></div>
   <div id="content"></div>
   <div class="nav">
@@ -95,6 +99,10 @@ function screen1() {
     <h2>Тензор — это коробка с числами, у которой есть форма</h2>
     <p>Одно число, вектор и матрица — не разные вещи, а одна и та же коробка с разным числом осей.
        Сколько осей — столько и «измерений»; это число называют рангом.</p>
+    <p><b>Как читать записи.</b> В shape столько чисел, сколько осей: <code>(3,)</code> — одна ось,
+       <code>(2, 3)</code> — две, <code>(2, 3, 4)</code> — три. Сами числа внутри скобок — это
+       <i>длины</i> осей, а не их количество. Поэтому (2, 3) и (3, 2) — оба ранга 2: две оси,
+       просто разной длины.</p>
     <div class="stage">
       <div class="row">
         <button class="btn" data-k="0">число 5</button>
@@ -116,16 +124,18 @@ function wire1() {
     if (k === 0) {
       out.innerHTML = `<div class="nest"><span class="tag">ранг 0</span>
         <div class="cell">5</div>
-        <span>shape: <b>()</b> — пустая форма, ноль осей, одно число</span></div>`;
+        <span>shape: <b>()</b> — в записи ноль чисел, значит ноль осей; само число одно</span></div>`;
     } else if (k === 1) {
       out.innerHTML = `<span class="tag">ранг 1 · shape (3,)</span>
         <div class="grid">${grid([[1, 2, 3]])}</div>
-        <div class="kv"><div>осей: <b>1</b></div><div>чисел: <b>3</b></div><div>это <b>вектор</b></div></div>`;
+        <div class="kv"><div>осей: <b>1</b> (в shape одно число)</div><div>длина оси: <b>3</b></div>
+        <div>чисел: <b>3</b></div><div>это <b>вектор</b></div></div>`;
     } else {
       out.innerHTML = `<span class="tag">ранг 2 · shape (2, 3)</span>
         <div class="grid">${grid([[1, 2, 3], [4, 5, 6]])}</div>
-        <div class="kv"><div>осей: <b>2</b></div><div>чисел: <b>6</b></div>
-        <div>строк: <b>2</b> · столбцов: <b>3</b></div></div>`;
+        <div class="kv"><div>осей: <b>2</b> (в shape два числа)</div>
+        <div>длины: <b>2 и 3</b></div><div>чисел: <b>6</b></div>
+        <div>ось 0 — строки, ось 1 — столбцы</div></div>`;
     }
     out.querySelectorAll(".btn") || null;
   };
@@ -138,22 +148,27 @@ function screen2() {
   return `
   <div class="card">
     <h2>Форма: одни и те же числа, разные обёртки</h2>
-    <p>Шесть чисел можно разложить по-разному. Числа при этом не меняются — меняется только то,
-       как они разложены по осям.</p>
+    <p>Шесть чисел можно разложить по-разному. Числа при этом не меняются — меняются
+       <b>длины осей</b> и их число.</p>
     <div class="stage">
       <div class="row">
         <button class="btn" data-shape="2,3">reshape(2, 3)</button>
         <button class="btn" data-shape="3,2">reshape(3, 2)</button>
         <button class="btn" data-shape="1,6">reshape(1, 6)</button>
-        <button class="btn" data-shape="6">reshape(6,)</button>
         <button class="btn" data-shape="4,2">reshape(4, 2)</button>
+        <button class="btn" data-shape="6">reshape(6,)</button>
       </div>
       <div class="out" id="s2out"></div>
     </div>
-    <div class="why"><b>Правило одно:</b> число элементов до и после должно совпасть. 6 = 2×3 = 3×2 = 1×6 = 6.
+    <div class="why"><b>Почему у (2, 3), (3, 2) и (1, 6) ранг один и тот же.</b> Считаем не длины, а числа
+      в записи: (2, 3) — два числа, (3, 2) — два числа, (1, 6) — тоже два. Значит у всех трёх осей две,
+      ранг 2; разница только в том, какая ось какой длины. У (6,) в записи одно число — одна ось, ранг 1.<br>
+      Ось длины 1 — это не «нет оси»: это ось, в которой лежит ровно один элемент. Поэтому (1, 6) —
+      по-прежнему таблица из одной строки и шести столбцов, и именно так её увидит слой сети.<br>
+      <b>Правило одно:</b> число элементов до и после должно совпасть. 6 = 2×3 = 3×2 = 1×6 = 6.
       В 4×2 восемь клеток — reshape откажется, и это не каприз библиотеки, а арифметика.
-      <b>Зачем:</b> картинку 28×28 превращают в вектор из 784 чисел именно reshape, прежде чем отдать
-      его первому слою сети.</div>
+      <b>Зачем:</b> картинку 28×28 превращают в вектор из 784 чисел именно reshape, прежде чем
+      отдать его первому слою сети.</div>
   </div>`;
 }
 
@@ -176,7 +191,11 @@ function wire2() {
     }
     out.innerHTML = `<span class="tag">shape (${dims.join(", ")})</span>
       <div class="grid">${grid(rows)}</div>
-      <div class="kv"><div>осей: <b>${dims.length}</b></div><div>чисел: <b>${six.length}</b></div></div>`;
+      <div class="kv"><div>осей: <b>${dims.length}</b> (в shape ${dims.length === 1 ? "одно число" : "два числа"})</div>
+      <div>длины: <b>${dims.join(" и ")}</b></div><div>чисел: <b>${six.length}</b></div></div>
+      <div class="note">${dims.length === 1
+        ? "ось 0 — единственная, длина 6"
+        : `ось 0 — строки, длина ${dims[0]} · ось 1 — столбцы, длина ${dims[1]}`}</div>`;
   };
   document.querySelectorAll("[data-shape]").forEach(b => b.onclick = () => draw(b.dataset.shape));
   draw("2,3");
@@ -187,8 +206,8 @@ function screen3() {
   return `
   <div class="card">
     <h2>Сложение: клетка к клетке, а если формы разные — растягиваем</h2>
-    <p>Матрица <code>A</code> — те же 2×3. Что будет, если прибавить число, вектор из трёх чисел
-       и вектор из двух?</p>
+    <p>Матрица <code>A</code> — те же 2×3. Нажми на любой вариант и прочитай шаги по порядку:
+       сначала что происходит с формами, потом что с числами.</p>
     <div class="stage">
       <div class="tag">A · shape (2, 3)</div>
       <div class="grid">${grid([[1, 2, 3], [4, 5, 6]])}</div>
@@ -199,28 +218,53 @@ function screen3() {
       </div>
       <div class="out" id="s3out"></div>
     </div>
-    <div class="why"><b>Правило.</b> Формы выравнивают справа: (2, 3) и (3,) — это (2, 3) и (1, 3),
-      двойка растягивается на две строки. Формы (2, 3) и (2,) выравниваются в (2, 3) и (1, 2) —
-      последняя ось 3 против 2, и сложение запрещено. <b>Зачем:</b> так к батчу из 32 примеров
-      прибавляют одно смещение на 128 чисел — не копируя его 32 раза вручную.</div>
+    <div class="why"><b>Правило в одну строку.</b> Формы выравнивают справа и сравнивают по одной оси:
+      если длины равны — можно; если одна из них 1 — растягиваем её до второй; иначе отказ.
+      Всё остальное — следствие этого правила.</div>
   </div>`;
 }
 
 function wire3() {
   const out = document.getElementById("s3out");
   const A = [[1, 2, 3], [4, 5, 6]];
-  const draw = (rows, caption) => {
-    out.innerHTML = `<span class="tag">${caption}</span><div class="grid">${grid(rows)}</div>`;
+  const steps = (html, rows, caption) => {
+    out.innerHTML = `<ol class="steps2">${html}</ol>
+      <span class="tag">${caption}</span><div class="grid">${grid(rows)}</div>`;
   };
-  document.querySelector("[data-op='mul']").onclick = () =>
-    draw(A.map(r => r.map(v => v * 2)), "A × 2 · shape (2, 3)");
-  document.querySelector("[data-op='plus3']").onclick = () =>
-    draw(A.map(r => r.map((v, j) => v + [10, 20, 30][j])), "A + [10, 20, 30] · shape (2, 3)");
+
+  document.querySelector("[data-op='mul']").onclick = () => {
+    steps(`
+      <li>A — это (2, 3)</li>
+      <li>2 — не тензор, а просто число: у него <b>ноль осей</b>, растягивать нечего</li>
+      <li>умножаем каждую клетку на 2, форма остаётся (2, 3)</li>`,
+      A.map(r => r.map(v => v * 2)), "A × 2 · shape (2, 3)");
+  };
+
+  document.querySelector("[data-op='plus3']").onclick = () => {
+    steps(`
+      <li>A — (2, 3): две оси, длины 2 и 3</li>
+      <li>у вектора <b>одна</b> ось, у A две → дописываем вектору слева единицу: (3,) → <b>(1, 3)</b></li>
+      <li>сравниваем справа: 3 и 3 — равны, можно. Ось длины 1 растягиваем до 2, это и есть
+          broadcasting: одна и та же строка [10, 20, 30] идёт в обе строки</li>
+      <li>складываем клетка к клетку, форма результата (2, 3)</li>`,
+      A.map(r => r.map((v, j) => v + [10, 20, 30][j])), "A + [10, 20, 30] · shape (2, 3)");
+  };
+
   document.querySelector("[data-op='plus2']").onclick = () => {
-    out.innerHTML = `<span class="err">нельзя: последняя ось у A равна 3, у вектора — 2.</span>
-      <div class="note">Вектор из двух чисел подошёл бы к матрице с двумя столбцами: (2, 2) + (2,).</div>`;
+    out.innerHTML = `
+      <ol class="steps2">
+        <li>A — (2, 3), вектор — (2,)</li>
+        <li>дописываем вектору слева единицу: (2,) → <b>(1, 2)</b></li>
+        <li>сравниваем справа: у A длина <b>3</b>, у вектора <b>2</b>. Растянуть можно только единицу,
+            а 3 и 2 — разные числа</li>
+        <li><span class="err">отказ.</span> И это правильно: непонятно, к какому столбцу прибавлять 10 —
+            к первому, ко второму или к обоим</li>
+      </ol>
+      <div class="note">Сложилось бы с вектором длины 3: (2, 3) + (3,) или (2, 3) + (1, 3).
+        А вектор (2,) подошёл бы к матрице из двух столбцов: (2, 2) + (2,).</div>`;
   };
-  draw(A.map(r => r.map(v => v * 2)), "A × 2 · shape (2, 3)");
+
+  document.querySelector("[data-op='plus3']").click();
 }
 
 // ---------- экран 4: умножение матриц ------------------------------------------
@@ -345,10 +389,36 @@ function draw() {
   progress(false);
 }
 
-document.getElementById("next").onclick = () => {
+// Чёрное окно с тренажёром могли закрыть: тогда переход на следующую страницу даёт
+// «не удалось получить доступ к сайту» и человек не понимает, что случилось.
+async function alive(url) {
+  try {
+    const r = await fetch(url, {method: "GET", cache: "no-store"});
+    return r.ok;
+  } catch (e) { return false; }
+}
+
+function serverGone() {
+  document.getElementById("content").innerHTML = `
+    <div class="card stop">
+      <h2>Сервер тренажёра закрыт</h2>
+      <p>Урок остался в этой вкладке, но следующая страница лежит на тренажёре, а он уже не отвечает:
+         чёрное окно с командой <code>trainer.py</code> закрылось.</p>
+      <p><b>Что делать:</b> снова запустить <code>start.cmd</code> в папке набора и открыть
+         <code>http://127.0.0.1:8765/lesson.html</code>. Ничего не потеряется: ответов ещё нет.</p>
+      <div class="row"><button class="btn primary" id="retry">проверить снова</button></div>
+    </div>`;
+  document.getElementById("retry").onclick = async () => {
+    if (await alive("/game.html")) location.href = "/game.html";
+    else document.getElementById("retry").textContent = "всё ещё не отвечает";
+  };
+}
+
+document.getElementById("next").onclick = async () => {
   if (screen === TOTAL - 1) {
     if (!finished) { finished = true; progress(true); }
-    location.href = "/game.html";
+    if (await alive("/game.html")) location.href = "/game.html";
+    else serverGone();
     return;
   }
   screen++;

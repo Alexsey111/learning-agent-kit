@@ -127,7 +127,14 @@ function finish() {
   const back = document.createElement("button");
   back.className = "btn primary";
   back.textContent = "к вопросам блока →";
-  back.onclick = () => { location.href = "/"; };
+  back.onclick = async () => {
+    try {
+      const r = await fetch("/", {cache: "no-store"});
+      if (r.ok) { location.href = "/"; return; }
+    } catch (e) { /* сервера нет — скажем словами */ }
+    body.insertAdjacentHTML("beforeend",
+      `<p class="note">Сервер тренажёра закрыт: запусти start.cmd заново и открой адрес из чёрного окна.</p>`);
+  };
   body.appendChild(back);
   progress(true);   // финиш фиксируется сразу: флаг входа снимется, даже если вкладку закроют
 }

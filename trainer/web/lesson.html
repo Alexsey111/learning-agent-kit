@@ -239,9 +239,19 @@ function render() {
 }
 
 document.getElementById("prev").onclick = () => { if (screen > 0) { screen--; render(); } };
+// Сервер мог закрыться вместе с чёрным окном: без проверки браузер покажет «не удалось
+// получить доступ к сайту», и человек не поймёт, что дело в закрытом окне.
+async function go(url) {
+  try {
+    const r = await fetch(url, {cache: "no-store"});
+    if (r.ok) { location.href = url; return; }
+  } catch (e) { /* сервера нет — скажем словами */ }
+  document.getElementById("hint").textContent =
+    "Сервер тренажёра закрыт: запусти start.cmd заново и открой http://127.0.0.1:8765/lesson.html";
+}
 document.getElementById("next").onclick = () => {
   if (screen < TOTAL - 1) { screen++; render(); }
-  else if (!finished) { finished = true; progress(true); location.href = "/"; }
+  else if (!finished) { finished = true; progress(true); go("/"); }
 };
 render();
 </script>
