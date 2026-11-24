@@ -36,6 +36,7 @@
 ```
 python scripts/selftest.py
 python scripts/speccheck.py
+python scripts/coverage.py --study <инстанс>
 ```
 
 Зелёный вывод означает: файлы на месте, парсер видит примеры, ключ полный, тренажёр поднялся,

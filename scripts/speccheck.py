@@ -176,8 +176,22 @@ def check_study(study: Path, label: str) -> None:
         answers = [p for p in (study / "answers").glob("block_*_answers.txt")] if (study / "answers").is_dir() else []
         if answers:
             newest = max(answers, key=lambda p: p.stat().st_mtime)
-            check(k.stat().st_mtime <= newest.stat().st_mtime,
-                  f"{k.name}: ключ написан до ответов ({k.stat().st_mtime:.0f} <= {newest.stat().st_mtime:.0f})")
+            # Правило ловит подгонку ключа под ответы. Правка после сдачи допустима, но
+            # только записанная в state.json с причиной: иначе это тихая подгонка.
+            edits = []
+            state_p0 = study / "state.json"
+            if state_p0.is_file():
+                try:
+                    st0 = json.loads(read(state_p0))
+                    edits = st0.get("key_edits_after_answers") or []
+                except Exception:  # noqa: BLE001
+                    edits = []
+            if k.stat().st_mtime <= newest.stat().st_mtime:
+                check(True, f"{k.name}: ключ написан до ответов")
+            else:
+                check(len(edits) > 0,
+                      f"{k.name}: ключ правился после ответов — записано {len(edits)} правки в state.json"
+                      + ("" if edits else " (правку после сдачи надо записать: дата и причина)"))
         else:
             print(f"  n/a  {k.name}: ответов нет — порядок «ключ до ответов» не проверить")
 

@@ -1,0 +1,17 @@
+{
+  "_о_чём": "Паспорт покрытия: что спрашивает блок и где именно урок это показывает. Проверяется scripts/coverage.py — гейт ищет каждый навык из asks в тексте вопроса и в teaches урока, и каждый teaches — в самом lesson.html.",
+  "screens": [
+    {"n": 1, "teaches": ["shape", "ранг", "оси"], "handle": "кнопки: число 5 / [1, 2, 3] / матрица 2×3"},
+    {"n": 2, "teaches": ["reshape", "длины осей"], "handle": "кнопки reshape(2, 3), (3, 2), (1, 6), (4, 2), (6,)"},
+    {"n": 3, "teaches": ["сложение", "broadcasting"], "handle": "кнопки A × 2, A + [10, 20, 30], A + [10, 20]"},
+    {"n": 4, "teaches": ["@"], "handle": "клик по клетке результата, кнопка A @ A"},
+    {"n": 5, "teaches": ["Linear", "ReLU", "батч"], "handle": "кнопки 1. X @ W, 2. + b, 3. ReLU"},
+    {"n": 6, "teaches": ["sum(axis=0)", "sum(axis=1)", "sum()"], "handle": "кнопки x.sum(axis=0), x.sum(axis=1), x.sum()"},
+    {"n": 7, "teaches": ["flatten", "(784,)", "(32, 128)"], "handle": "кнопки reshape(32, 784), Linear(784, 128), (784,)"}
+  ],
+  "questions": {
+    "1": {"asks": ["shape", "sum(axis=0)", "sum(axis=1)", "sum()"]},
+    "2": {"asks": ["@", "broadcasting"]},
+    "3": {"asks": ["flatten", "(32, 128)", "(784,)"]}
+  }
+}

@@ -49,6 +49,8 @@ start.cmd               запуск тренажёра на Windows (CRLF!)
 
 1. `python scripts/selftest.py` — должен быть зелёный. Если красный, пакет битый.
    Потом `python scripts/speccheck.py` — проверки по брифу: блок, ключ, state, план тем.
+   Перед выдачей блока — `python scripts/coverage.py --study <инстанс>`: урок обязан
+   покрывать блок (паспорт `study/coverage.json`).
 2. Прочитать `AGENT_BRIEF.md` целиком: это контракт.
 3. Заполнить анкету `INTAKE.md` с новым учеником → `study/INTAKE_filled.md`.
 4. Развернуть: `study/` = копия `study_example/` (для пробы) или `templates/state.json`

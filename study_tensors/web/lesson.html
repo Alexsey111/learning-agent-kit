@@ -62,7 +62,7 @@
 <body>
 <div class="wrap">
   <h1>Урок 0 — Тензоры: что это, зачем и как с ними работать</h1>
-  <div class="sub">Пять экранов, 12–15 минут. Здесь всё можно нажимать: каждая ручка считает по-настоящему, на памяти проверять не нужно. Чёрное окно с тренажёром не закрывайте — оно и есть сервер.</div>
+  <div class="sub">Семь экранов, 15–20 минут. Здесь всё можно нажимать: каждая ручка считает по-настоящему, на памяти проверять не нужно. Чёрное окно с тренажёром не закрывайте — оно и есть сервер.</div>
   <div class="steps" id="steps"></div>
   <div id="content"></div>
   <div class="nav">
@@ -74,7 +74,7 @@
 
 <script>
 const SESSION = Number("__SESSION__") || 0;
-const TOTAL = 5;
+const TOTAL = 7;
 let screen = 0, finished = false;
 
 const stepsEl = document.getElementById("steps");
@@ -374,9 +374,119 @@ function wire5() {
   out.innerHTML = steps[1];
 }
 
+// ---------- экран 6: суммы по осям ---------------------------------------------
+function screen6() {
+  return `
+  <div class="card">
+    <h2>Сумма по осям: какую ось сворачиваем, та и исчезает</h2>
+    <p>Сумма умеет свернуть весь тензор в одно число, а умеет — только одну ось из двух.
+       Нажми каждый вариант и смотри не только на числа, но и на форму: исчезла та ось,
+       которую сворачивали.</p>
+    <div class="stage">
+      <div class="tag">x · shape (2, 3)</div>
+      <div class="grid">${grid([[1, 2, 3], [4, 5, 6]])}</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" data-ax="0">x.sum(axis=0)</button>
+        <button class="btn" data-ax="1">x.sum(axis=1)</button>
+        <button class="btn" data-ax="all">x.sum()</button>
+      </div>
+      <div class="out" id="s6out"></div>
+    </div>
+    <div class="why"><b>Как выбрать ось.</b> Ось 0 — строки, ось 1 — столбцы. Сворачиваем ось 0:
+      строки складываются между собой поэлементно, [1+4, 2+5, 3+6] = [5, 7, 9], остаётся одна ось
+      длины 3 — форма (3,). Сворачиваем ось 1: каждая строка схлопывается в своё число, 1+2+3 = 6
+      и 4+5+6 = 15, форма (2,). Без axis сворачивается всё подряд — 21 и пустая форма ().</div>
+  </div>`;
+}
+
+function wire6() {
+  const out = document.getElementById("s6out");
+  const A = [[1, 2, 3], [4, 5, 6]];
+  const show = (mode) => {
+    if (mode === "0") {
+      const col = A[0].map((_, j) => A[0][j] + A[1][j]);
+      out.innerHTML = `<ol class="steps2">
+          <li>сворачиваем <b>ось 0</b> — строки — между собой</li>
+          <li>складываем поэлементно: [1+4, 2+5, 3+6] = <b>[5, 7, 9]</b></li>
+          <li>ось 0 исчезла, осталась одна ось длины 3 → shape <b>(3,)</b></li>
+        </ol>
+        <span class="tag">x.sum(axis=0) · shape (3,)</span><div class="grid">${grid([col])}</div>`;
+    } else if (mode === "1") {
+      const rows = A.map(r => r.reduce((a, b) => a + b, 0));
+      out.innerHTML = `<ol class="steps2">
+          <li>сворачиваем <b>ось 1</b> — столбцы — внутри каждой строки</li>
+          <li>каждая строка схлопывается в своё число: 1+2+3 = 6, 4+5+6 = 15</li>
+          <li>ось 1 исчезла, осталась ось длины 2 → shape <b>(2,)</b></li>
+        </ol>
+        <span class="tag">x.sum(axis=1) · shape (2,)</span><div class="grid">${grid([rows])}</div>`;
+    } else {
+      out.innerHTML = `<ol class="steps2">
+          <li><b>без axis</b> сворачивается всё: 1+2+3+4+5+6 = <b>21</b></li>
+          <li>осей не осталось → shape <b>()</b>, это просто число</li>
+        </ol>
+        <span class="tag">x.sum() · shape ()</span><div class="grid">${grid([[21]])}</div>`;
+    }
+  };
+  document.querySelectorAll("[data-ax]").forEach(b => b.onclick = () => show(b.dataset.ax));
+  show("0");
+}
+
+// ---------- экран 7: батч, flatten и пропавшая ось ------------------------------
+function screen7() {
+  return `
+  <div class="card">
+    <h2>Батч: flatten и ось, которую нельзя терять</h2>
+    <p>32 картинки 28×28 — это тензор (32, 28, 28). Перед слоем две последние оси склеивают
+       в одну: 28×28 = 784. Первая ось — сколько примеров — остаётся на месте.</p>
+    <div class="stage">
+      <div class="tag">x · shape (32, 28, 28)</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" data-f="flat">x.reshape(32, 784)</button>
+        <button class="btn" data-f="lin">Linear(784, 128)</button>
+        <button class="btn" data-f="one">подать один пример (784,)</button>
+      </div>
+      <div class="out" id="s7out"></div>
+    </div>
+    <div class="why"><b>Правило батча.</b> Ось 0 — это «сколько примеров сразу», и она не участвует
+      в умножении: (32, 784) @ (784, 128) даёт (32, 128). Внутренняя ось 784 — признаки одного
+      примера, внешняя 32 — примеры. Подашь один пример как (784,) — получишь (128,): батч-ось
+      пропала, и следующий слой, который ждёт «примеры × признаки», получит вектор вместо таблицы.
+      Правильно — (1, 784) на входе и (1, 128) на выходе.</div>
+  </div>`;
+}
+
+function wire7() {
+  const out = document.getElementById("s7out");
+  const show = (mode) => {
+    if (mode === "flat") {
+      out.innerHTML = `<ol class="steps2">
+          <li>было (32, 28, 28): 32 примера, у каждого 28 строк и 28 столбцов пикселей</li>
+          <li>две последние оси склеиваем: 28 × 28 = <b>784</b> признака на пример</li>
+          <li>ось 0 не тронута → shape <b>(32, 784)</b></li>
+          <li>чисел столько же: 32 × 784 = 32 × 28 × 28 = 25 088</li>
+        </ol>`;
+    } else if (mode === "lin") {
+      out.innerHTML = `<ol class="steps2">
+          <li>Linear(784, 128) — это матрица весов формы (784, 128)</li>
+          <li>(32, 784) @ (784, 128): внутренние 784 совпали, внешние дают форму результата</li>
+          <li>на выходе <b>(32, 128)</b>: у каждого из 32 примеров по 128 чисел</li>
+        </ol>`;
+    } else {
+      out.innerHTML = `<ol class="steps2">
+          <li>подали (784,) — это <b>один</b> вектор, батч-оси нет</li>
+          <li>Linear(784, 128) выдаст <b>(128,)</b> — тоже один вектор</li>
+          <li>следующий слой ждёт (примеры × признаки), а получил (признаки,) — ошибка формы</li>
+          <li><span class="err">правильно:</span> (1, 784) → (1, 128)</li>
+        </ol>`;
+    }
+  };
+  document.querySelectorAll("[data-f]").forEach(b => b.onclick = () => show(b.dataset.f));
+  show("flat");
+}
+
 // ---------- навигация ----------------------------------------------------------
-const RENDER = [screen1, screen2, screen3, screen4, screen5];
-const WIRE = [wire1, wire2, wire3, wire4, wire5];
+const RENDER = [screen1, screen2, screen3, screen4, screen5, screen6, screen7];
+const WIRE = [wire1, wire2, wire3, wire4, wire5, wire6, wire7];
 
 function draw() {
   for (const i of stepsEl.children) i.className = "";

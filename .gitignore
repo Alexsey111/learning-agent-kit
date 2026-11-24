@@ -5,3 +5,8 @@ __pycache__/
 venv/
 .DS_Store
 Thumbs.db
+
+# Личные ответы ученика в наборе не версионируются: это его данные, не содержимое пакета.
+# Уже закоммиченные файлы study_docker/answers остаются как есть — ignore их не трогает.
+study_*/answers/*
+!study_*/answers/.gitkeep

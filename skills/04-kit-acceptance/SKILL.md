@@ -90,6 +90,8 @@ python scripts/selftest.py
 
 - `python scripts/selftest.py` — зелёный;
 - `python scripts/speccheck.py` — зелёный (у гейта свои контроли: на посаженных дефектах он краснеет);
+- `python scripts/coverage.py --study <инстанс>` — зелёный: каждый вопрос блока покрыт экраном
+  урока с ручкой, числа эталона посчитаны в уроке;
 - `start.cmd` в CRLF, страница отдаёт блок и ровно N полей;
 - `study/state.json` с session, `current.txt` соответствует ему;
 - `INTAKE_filled.md` заполнен шестью полями, `topic_plan.md` собран из диагностики;
