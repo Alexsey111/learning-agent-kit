@@ -27,10 +27,15 @@
   textarea{width:100%;min-height:96px;resize:vertical;background:var(--card2);color:var(--fg);
     border:1px solid var(--line);border-radius:9px;padding:11px 12px;font:inherit;font-size:16px;line-height:1.55}
   textarea:focus{outline:none;border-color:var(--acc)}
+  /* фокус виден и без «угадай, где я»: обводка цветом акцента на любом контроле */
+  a:focus-visible,button:focus-visible,textarea:focus-visible,input:focus-visible{
+    outline:2px solid var(--acc);outline-offset:2px}
+  button:disabled{opacity:.5;cursor:default}
   textarea::placeholder{color:#6b7684}
   .tools{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
   .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
-    padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+    padding:6px 12px;font:inherit;font-size:14px;cursor:pointer;min-height:44px;
+    display:inline-flex;align-items:center;justify-content:center}
   .btn:hover{border-color:var(--acc);color:var(--acc)}
   .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
   .btn.primary:hover{filter:brightness(1.1);color:#08111c}
@@ -42,6 +47,7 @@
   #state{font-size:13px;color:var(--dim);min-width:132px;text-align:right}
   .ok{color:var(--ok)} .warn{color:var(--warn)}
   .done{background:var(--card);border:1px solid var(--ok);border-radius:12px;padding:26px;margin-top:20px}
+  .done p{overflow-wrap:anywhere}
   .done h2{color:var(--ok);margin:0 0 12px;font-size:20px}
   code{background:#0d1218;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:14px}
   .hint{color:var(--dim);font-size:13px;margin-top:4px}
@@ -188,20 +194,22 @@ const saveBtn = document.getElementById("saveBtn");
 saveBtn.onclick = () => {
   const answers = collect();
   const empty = Object.keys(answers).filter(k => !answers[k].trim());
-  if (empty.length && !confirm("Без ответа: " + empty.join(", ") + ". Всё равно сохранить?")) return;
+  // Без confirm(): нативный диалог останавливает страницу и любой автотест.
+  // Пустые поля не блокируют сохранение — они попадают в итог перечнем.
   saveBtn.disabled = true;
   fetch("/save", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session: SESSION, answers })
   }).then(r => r.json()).then(j => {
-    if (!j.ok) { saveBtn.disabled = false; setState("не сохранилось", "warn"); alert("Не сохранилось: " + j.error); return; }
+    if (!j.ok) { saveBtn.disabled = false; setState("не сохранилось: " + j.error, "warn"); return; }
     localStorage.removeItem(DRAFT_KEY);
     document.getElementById("doneBox").hidden = false;
     document.getElementById("doneText").textContent =
-      "Отвечено " + j.answered + " из " + j.total + ". Файл: " + j.path;
+      "Отвечено " + j.answered + " из " + j.total + "." +
+      (empty.length ? " Без ответа: " + empty.join(", ") + "." : "") + " Файл: " + j.path;
     setState("готово", "ok");
     document.getElementById("doneBox").scrollIntoView({ behavior: "smooth" });
-  }).catch(e => { saveBtn.disabled = false; setState("сервер не отвечает", "warn"); alert("Сервер не отвечает: " + e); });
+  }).catch(e => { saveBtn.disabled = false; setState("сервер не отвечает: " + e, "warn"); });
 };
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") saveBtn.click();

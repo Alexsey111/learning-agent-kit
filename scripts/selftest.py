@@ -91,6 +91,14 @@ def main() -> int:
         check(info["count"] == 6, f"{rel}: вопросов {info['count']} (ожидалось 6)")
         check(bool(info["title"]), f"{rel}: заголовок «{info['title'][:48]}…»")
         check(bool(info["subtitle"]), f"{rel}: подзаголовок есть")
+        # шаблон требует, чтобы подзаголовок был строкой состава: «Сессия N: ...».
+        # Без этого парсер молча съедает первый абзац как подзаголовок и блок проходит.
+        check(re.match(r"^Сессия\s+\d+", info["subtitle"]) is not None,
+              f"{rel}: подзаголовок — строка «Сессия N: …» -> «{info['subtitle'][:40]}…»")
+        declared = re.search(r"Итого\s+(\d+)\s+вопрос", text)
+        check(declared is not None and int(declared.group(1)) == info["count"],
+              f"{rel}: «Итого N вопросов» сходится с парсером "
+              f"({declared.group(1) if declared else '—'} против {info['count']})")
 
     print("3. Ключ примера")
     key = (KIT / "study_example/keys/block_1_key.txt").read_text(encoding="utf-8")

@@ -21,11 +21,13 @@
   .stage{background:#0d1218;border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 14px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
-       padding:8px 14px;font:inherit;font-size:15px;cursor:pointer}
+       padding:8px 14px;font:inherit;font-size:15px;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
   .btn:hover{border-color:var(--acc);color:var(--acc)}
   .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
   .btn.primary:hover{filter:brightness(1.1);color:#08111c}
   .btn:disabled{opacity:.45;cursor:default}
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--acc);outline-offset:2px}
   input[type=number]{width:90px;background:var(--card2);color:var(--fg);border:1px solid var(--line);
        border-radius:8px;padding:7px 10px;font:inherit}
   input[type=range]{width:100%}

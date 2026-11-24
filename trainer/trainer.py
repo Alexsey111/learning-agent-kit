@@ -42,6 +42,19 @@ WEB = ROOT / "web"
 
 Q_RE = re.compile(r"^(\d+)\.\s+(.*)$")
 H_RE = re.compile(r"^===\s*(.*?)\s*===*\s*$")
+PAGE_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+MAX_BODY = 2_000_000  # больше — не ответ ученика, а мусор
+
+
+def page_name(value: object) -> str:
+    """Имя страницы из тела запроса -> безопасное имя файла или "".
+
+    Слэши, точки и «..» отбрасываются целиком: имя страницы — это метка носителя
+    (lesson, game, свой прибор), а не путь. Иначе вызывающий выбирает, куда писать.
+    """
+    text = str(value or "").strip()
+    return text if PAGE_RE.match(text) else ""
+
 
 
 class Cfg:
@@ -205,28 +218,64 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self) -> None:  # noqa: N802
+        try:
+            self._post()
+        except Exception as exc:  # noqa: BLE001 — наружу не отдаём трейсбек
+            self._json(500, {"ok": False, "error": f"внутренняя ошибка: {type(exc).__name__}"})
+
+    def _post(self) -> None:
         path = urlparse(self.path).path
         if path not in ("/draft", "/save", "/progress"):
             self._send(404, b"not found", "text/plain")
             return
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            self._json(415, {"ok": False, "error": "нужен Content-Type: application/json"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._json(400, {"ok": False, "error": "битый Content-Length"})
+            return
+        if length > MAX_BODY:
+            self._json(413, {"ok": False, "error": f"тело больше {MAX_BODY} байт"})
+            return
+        try:
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
         except Exception as exc:  # noqa: BLE001
-            self._json(400, {"ok": False, "error": str(exc)})
+            self._json(400, {"ok": False, "error": f"тело не JSON: {type(exc).__name__}"})
+            return
+        if not isinstance(payload, dict):
+            self._json(400, {"ok": False, "error": "тело должно быть объектом JSON"})
             return
 
-        try:
-            session = int(payload.get("session") or read_session())
-        except (TypeError, ValueError):
+        session = payload.get("session")
+        if not isinstance(session, int) or isinstance(session, bool) or session < 0:
             session = read_session()
-        answers: dict[str, str] = payload.get("answers") or {}
+        raw_answers = payload.get("answers")
+        if raw_answers is None:
+            answers: dict[str, str] = {}
+        elif not isinstance(raw_answers, dict):
+            self._json(400, {"ok": False, "error": "answers должен быть объектом {номер: текст}"})
+            return
+        else:
+            answers = {}
+            for key, value in raw_answers.items():
+                if not isinstance(value, str):
+                    self._json(400, {"ok": False,
+                                     "error": f"ответ {key!r} должен быть строкой"})
+                    return
+                answers[str(key)] = value
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
         Cfg.answers().mkdir(parents=True, exist_ok=True)
 
         if path == "/progress":
-            # урок или игра: каждый шаг дописывается строкой, флаг входа снимается на финише
-            page = str(payload.get("page") or "page").strip("/\\") or "page"
+            # урок или игра: каждый шаг дописывается строкой, флаг входа снимается на финише.
+            # Имя страницы — не путь: только буквы, цифры, дефис и подчёркивание.
+            page = page_name(payload.get("page"))
+            if not page:
+                self._json(400, {"ok": False, "error": "page: до 32 символов [a-z0-9_-]"})
+                return
             row = {"saved_at": stamp, "session": session,
                    **{k: v for k, v in payload.items() if k not in ("session", "page")}}
             with (Cfg.answers() / f"{page}_{session}.jsonl").open("a", encoding="utf-8") as fh:

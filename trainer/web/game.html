@@ -27,10 +27,11 @@
   .score{color:var(--dim);font-size:14px}
   .score b{color:var(--fg)}
   .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
-       padding:8px 14px;font:inherit;cursor:pointer}
+       padding:8px 14px;font:inherit;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
   .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
   .done{color:var(--ok);font-size:19px;font-weight:700;margin:0 0 10px}
   .note{color:var(--dim);font-size:14px}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -74,7 +75,7 @@ const body = document.getElementById("body");
 function progress(finish) {
   fetch("/progress", {
     method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({session: SESSION, page: "game", screen: cur + 1, total: ROUNDS.length,
+    body: JSON.stringify({session: SESSION, page: "game", screen: Math.min(cur + 1, ROUNDS.length), total: ROUNDS.length,
                           score: ok, answered, finished: !!finish})
   }).catch(() => {});
 }
@@ -105,7 +106,7 @@ function draw() {
       fb.innerHTML = `<b>${right ? "верно" : "нет"}</b>. ${r.why}`;
       const next = document.createElement("button");
       next.className = "btn primary";
-      next.style.marginTop = "12px";
+      next.style.marginTop = "12px"; next.style.display = "block"; next.style.width = "fit-content";
       next.textContent = cur === ROUNDS.length - 1 ? "итог" : "дальше →";
       next.onclick = () => { cur++; draw(); };
       fb.appendChild(next);
