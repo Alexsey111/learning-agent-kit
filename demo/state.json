@@ -1,0 +1,33 @@
+{
+  "track": "demo-percent",
+  "learner": "демо-ученик: взрослый, проценты подзабыты",
+  "session": 1,
+  "phase": "zero",
+  "status": "active",
+  "current_topic": "percent_basics",
+  "topics_order": ["percent_basics", "discounts_in_life", "interest_money", "quick_estimate"],
+  "mode": {
+    "hours_per_week": 3,
+    "session_minutes": 25,
+    "window": "когда есть полчаса",
+    "hard_stop": "без ограничения"
+  },
+  "gaps": [],
+  "review_queue": [],
+  "rules": {
+    "max_new_gaps_per_session": 2,
+    "review_offsets": [3, 10],
+    "questions_per_block": "первый блок после урока — 3 вопроса, дальше 6-8",
+    "max_razborov_per_session": 2,
+    "max_blocks_per_day": 1
+  },
+  "history": [
+    {
+      "session": 0,
+      "date": "2026-11-24",
+      "event": "демо: анкета и план заполнены заранее, чтобы было видно, откуда берётся блок"
+    }
+  ],
+  "razbor": {},
+  "next_step": "урок на 4 экрана, затем блок 1 из 3 вопросов; после блока — разбор и возврат к теме на сессиях 4 и 11"
+}

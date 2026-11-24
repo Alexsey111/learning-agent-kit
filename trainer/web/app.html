@@ -49,6 +49,18 @@
   .done{background:var(--card);border:1px solid var(--ok);border-radius:12px;padding:26px;margin-top:20px}
   .done p{overflow-wrap:anywhere}
   .done h2{color:var(--ok);margin:0 0 12px;font-size:20px}
+  .demo{background:#182231;border:1px solid var(--acc);border-left:4px solid var(--acc);
+    border-radius:10px;padding:14px 16px;margin:0 0 20px;font-size:14px;line-height:1.55}
+  .demo b{color:var(--acc)}
+  .check{background:var(--card);border:1px solid var(--acc);border-radius:12px;padding:22px;margin-top:18px}
+  .check h2{color:var(--acc);margin:0 0 6px;font-size:20px}
+  .check .sum{font-size:17px;font-weight:700;margin:0 0 4px}
+  .qline{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}
+  .qline .qh{font-weight:700;margin-bottom:6px}
+  .qline .st{font-size:14px;margin:2px 0}
+  .qline .st.y{color:var(--ok)} .qline .st.n{color:var(--warn)}
+  .qline .ans,.qline .eta{font-size:14px;color:var(--dim);margin:4px 0 0;overflow-wrap:anywhere}
+  .qline .eta b{color:var(--fg);font-weight:600}
   code{background:#0d1218;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:14px}
   .hint{color:var(--dim);font-size:13px;margin-top:4px}
   @media print{ .bar,.tools{display:none} body{background:#fff;color:#000} }
@@ -58,11 +70,23 @@
 <div class="wrap">
   <h1 id="title"></h1>
   <div class="sub" id="sub"></div>
+  <div id="demoBar" class="demo" hidden>
+    <b>Это демо.</b> Проверка идёт здесь же, в тренажёре: ответишь — сразу увидишь балл и
+    разбор. Так весь цикл видно без агента. В рабочем цикле ответы проверяет агент по ключу
+    и пишет разбор подробнее — но файлы те же самые.
+  </div>
   <div id="content"></div>
   <div id="doneBox" class="done" hidden>
     <h2>Сохранено</h2>
     <p id="doneText"></p>
-    <p class="hint">Окно можно закрыть. Скажи ассистенту: «готово» — он прочитает файл с ответами.</p>
+    <p class="hint" id="doneHint">Окно можно закрыть. Скажи ассистенту: «готово» — он прочитает файл с ответами.</p>
+  </div>
+  <div id="checkBox" class="check" hidden>
+    <h2>Проверка</h2>
+    <p class="sum" id="checkSum"></p>
+    <p class="hint" id="checkNote"></p>
+    <div id="checkList"></div>
+    <p class="hint" id="checkTail"></p>
   </div>
 </div>
 
@@ -100,6 +124,12 @@ const plural = (n, one, few, many) => {
 meta.textContent = "Сессия " + SESSION + " · " + qs.length + " " +
   plural(qs.length, "вопрос", "вопроса", "вопросов") + " · ответы сохраняются в study/answers/";
 subEl.appendChild(meta);
+if (DATA.demo) {
+  document.getElementById("demoBar").hidden = false;
+  document.getElementById("doneHint").textContent =
+    "В демо ассистенту ничего говорить не нужно: проверка уже ниже. " +
+    "В рабочем цикле на этом месте ты пишешь агенту «готово» — и он читает этот же файл.";
+}
 
 const content = document.getElementById("content");
 const areas = {};
@@ -191,6 +221,53 @@ function pushDraft(answers) {
 for (const k in areas) areas[k].addEventListener("input", scheduleSave);
 
 const saveBtn = document.getElementById("saveBtn");
+
+const fmtScore = (v) => (Number.isInteger(v) ? String(v) : String(v).replace(".", ","));
+
+function renderCheck(sc) {
+  document.getElementById("checkSum").textContent =
+    "Демо-проверка: " + fmtScore(sc.score) + " из " + fmtScore(sc.max) + " баллов.";
+  document.getElementById("checkNote").textContent =
+    (sc.note ? sc.note + " " : "") +
+    "Проверка ищет в ответе ключевые числа и не понимает смысл: поэтому общий балл может " +
+    "расходиться с тем, как оценил бы человек.";
+  const list = document.getElementById("checkList");
+  list.textContent = "";
+  for (const q of sc.questions) {
+    const row = document.createElement("div");
+    row.className = "qline";
+    const head = document.createElement("div");
+    head.className = "qh";
+    head.textContent = "Вопрос " + q.num + " — " + fmtScore(q.score) + " из " + fmtScore(q.max);
+    row.appendChild(head);
+    for (const st of q.steps) {
+      const line = document.createElement("div");
+      line.className = "st " + (st.ok ? "y" : "n");
+      line.textContent = (st.ok ? "зачтено: " : "не хватило: ") + st.why;
+      row.appendChild(line);
+    }
+    const ans = document.createElement("p");
+    ans.className = "ans";
+    ans.textContent = q.empty ? "Твой ответ: пусто." : "Твой ответ: «" + q.answer + "»";
+    row.appendChild(ans);
+    if (q.etalon) {
+      const eta = document.createElement("p");
+      eta.className = "eta";
+      const b = document.createElement("b");
+      b.textContent = "Эталон: ";
+      eta.appendChild(b);
+      eta.appendChild(document.createTextNode(q.etalon));
+      row.appendChild(eta);
+    }
+    list.appendChild(row);
+  }
+  document.getElementById("checkTail").textContent =
+    (sc.razbor_path ? "Этот разбор записан в файл: " + sc.razbor_path + ". " : "") +
+    "В рабочем цикле такой же файл пишет агент, только подробнее: по каждому провалу — " +
+    "что не так, как правильно и какой командой проверить.";
+  document.getElementById("checkBox").hidden = false;
+}
+
 saveBtn.onclick = () => {
   const answers = collect();
   const empty = Object.keys(answers).filter(k => !answers[k].trim());
@@ -208,7 +285,9 @@ saveBtn.onclick = () => {
       "Отвечено " + j.answered + " из " + j.total + "." +
       (empty.length ? " Без ответа: " + empty.join(", ") + "." : "") + " Файл: " + j.path;
     setState("готово", "ok");
-    document.getElementById("doneBox").scrollIntoView({ behavior: "smooth" });
+    if (j.selfcheck) renderCheck(j.selfcheck);
+    document.getElementById(j.selfcheck ? "checkBox" : "doneBox")
+      .scrollIntoView({ behavior: "smooth" });
   }).catch(e => { saveBtn.disabled = false; setState("сервер не отвечает: " + e, "warn"); });
 };
 document.addEventListener("keydown", e => {

@@ -33,6 +33,7 @@ KIT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(KIT / "trainer"))
 from trainer import parse_block  # noqa: E402
 import trainer  # noqa: E402
+import selfcheck  # noqa: E402
 
 OK, FAIL = [], []
 
@@ -83,6 +84,11 @@ def main() -> int:
         "examples/qa_block_1.txt", "examples/qa_block_1_key.txt",
         "study_example/state.json", "study_example/blocks/block_1.txt",
         "study_example/keys/block_1_key.txt",
+        "trainer/selfcheck.py",
+        "demo/state.json", "demo/current.txt", "demo/coverage.json",
+        "demo/keys/block_1_key.txt", "demo/keys/block_1_check.json",
+        "demo/web/lesson.html", "demo/README.txt",
+        "demo/gaps/block_1_razbor_example.txt",
         "skills/01-direction-diagnostic/SKILL.md", "skills/02-learning-cycle/SKILL.md",
         "skills/03-lessons-and-checks/SKILL.md", "skills/04-kit-acceptance/SKILL.md",
         "skills/05-zero-start/SKILL.md",
@@ -113,6 +119,33 @@ def main() -> int:
     check("Шкала" in key and "сумма из 12" in key, "шкала и сумма из 12 описаны")
     for mark in ("1.5 —", "1 —", "0 —"):
         check(key.count(mark) >= 3, f"уровень «{mark}» встречается {key.count(mark)} раз")
+
+    print("3б. Демо: блок, ключ и машинный образец")
+    demo_block = parse_block((KIT / "demo/current.txt").read_text(encoding="utf-8"))
+    check(demo_block["count"] == 3, f"демо: вопросов {demo_block['count']} (после урока — 3)")
+    check(demo_block["subtitle"].startswith("Сессия 1"), "демо: подзаголовок «Сессия 1…»")
+    demo_key = (KIT / "demo/keys/block_1_key.txt").read_text(encoding="utf-8")
+    check(demo_key.count("(2 балла)") == 3, "демо: в ключе уровень «2 балла» на каждый вопрос")
+    check("Итог: 6" in demo_key, "демо: шкала сходится (3 вопроса × 2 = 6)")
+    demo_dir = KIT / "demo"
+    check(selfcheck.has_check(demo_dir), "демо: машинный образец keys/block_1_check.json найден")
+    sc = selfcheck.score(demo_dir, 1, {
+        "1": "скидка 200 ₽, цена 800 ₽",
+        "2": "960 ₽, до 1000 не хватает 40 ₽",
+        "3": "25%, потому что 20% от 800 — это 160 ₽",
+    })
+    check(bool(sc) and sc["score"] == 6 and sc["max"] == 6,
+          f"демо: полный ответ -> {sc['score'] if sc else '—'} из {sc['max'] if sc else '—'}")
+    part = selfcheck.score(demo_dir, 1, {"1": "800", "2": "", "3": "не знаю"})
+    check(bool(part) and part["score"] == 1,
+          f"демо: частичный ответ (только цена) -> {part['score'] if part else '—'} из 6")
+    zero = selfcheck.score(demo_dir, 1, {"1": "980", "2": "1000", "3": "20%"})
+    check(bool(zero) and zero["score"] == 0, "демо: типичные ошибки -> 0 баллов")
+    # сравнение по значению, а не по подстроке: 250 не должно закрывать шаг «25»
+    check(25.0 in selfcheck.numbers("25%") and 25.0 not in selfcheck.numbers("250"),
+          "демо: числа сравниваются по значению (25 ≠ 250)")
+    check(selfcheck.score(KIT / "study_example", 1, {"1": "тест"}) is None,
+          "обычный инстанс без образца -> проверки внутри тренажёра нет")
 
     print("4. Тренажёр: живой прогон на временной копии")
     with tempfile.TemporaryDirectory(prefix="kit_selftest_") as tmp:
@@ -217,6 +250,67 @@ def main() -> int:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
+    print("4в. Демо-инстанс: урок -> блок -> проверка в браузере")
+    with tempfile.TemporaryDirectory(prefix="kit_demo_") as tmp:
+        demo_copy = Path(tmp) / "demo"
+        shutil.copytree(KIT / "demo", demo_copy)
+        (demo_copy / "answers").mkdir(exist_ok=True)
+        port = free_port(8820)
+        proc = subprocess.Popen(
+            [sys.executable, str(KIT / "trainer/trainer.py"),
+             "--study", str(demo_copy), "--port", str(port), "--no-browser"],
+            cwd=str(KIT), stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        )
+        base = f"http://127.0.0.1:{port}"
+        try:
+            for _ in range(40):
+                try:
+                    with urllib.request.urlopen(base + "/", timeout=3) as r:
+                        first = r.read().decode("utf-8")
+                        final_url = r.geturl()
+                    break
+                except (urllib.error.URLError, ConnectionError):
+                    if proc.poll() is not None:
+                        first, final_url = "", ""
+                        break
+                    time.sleep(0.25)
+            check("Демо-урок" in first, "демо: корень ведёт на урок (носитель первым)")
+            check(final_url.endswith("/lesson.html"), f"демо: редирект на урок ({final_url.rsplit('/', 1)[-1]})")
+            check("TOTAL = 4" in first, "демо: урок на 4 экрана")
+
+            save = http_post(base + "/save", {"session": 1, "answers": {
+                "1": "800 ₽, скидка 200 ₽",
+                "2": "960 ₽, до 1000 не хватает 40 ₽",
+                "3": "25%, потому что 20% от 800 — это 160 ₽",
+            }})
+            sc = save.get("selfcheck") or {}
+            check(save.get("ok") is True and sc.get("score") == 6,
+                  f"демо: ответы сохранены и проверены -> {sc.get('score')} из {sc.get('max')}")
+            check(bool(sc.get("razbor_path")) and Path(sc["razbor_path"]).is_file(),
+                  "демо: разбор записан на диск")
+            razbor = Path(sc["razbor_path"]).read_text(encoding="utf-8") if sc.get("razbor_path") else ""
+            check("зачтено" in razbor and "Вопрос 3" in razbor, "демо: в разборе есть разбор по вопросам")
+            check((demo_copy / "answers" / "block_1_answers.txt").is_file(),
+                  "демо: файл ответов рядом (его же читает агент)")
+
+            pr = http_post(base + "/progress", {"session": 1, "page": "lesson", "screen": 4,
+                                                "total": 4, "finished": True})
+            check(pr.get("ok") is True and not (demo_copy / "lesson_pending").exists(),
+                  "демо: флаг урока снят после последнего экрана")
+            block = http_get(base + "/")
+            check("БЛОК 1" in block and "Демо-урок" not in block,
+                  "демо: после урока блок открывается первым")
+            check('"demo": true' in block and "Это демо" in block,
+                  "демо: страница блока помечена как демо")
+            check("checkBox" in block and "renderCheck" in block,
+                  "демо: страница умеет показать проверку после «Готово»")
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
     print("5. start.cmd")
     cmd = (KIT / "start.cmd").read_bytes()
     check(cmd.startswith(b"@echo off"), "начинается с @echo off")
@@ -226,6 +320,8 @@ def main() -> int:
     # «trainer\trainer.py», окно живёт до pause, и выглядит это как «ничего не открылось».
     check(b"\t" not in cmd, "в start.cmd нет символов табуляции")
     text_cmd = cmd.decode("utf-8", "replace")
+    check("set STUDY=demo" in text_cmd,
+          "без аргумента открывается демо (первый запуск ведёт туда, где есть урок)")
     call = [ln for ln in text_cmd.splitlines() if ln.strip().lower().startswith("python ")]
     check(len(call) == 1, f"одна строка запуска python (нашлось {len(call)})")
     if len(call) == 1:

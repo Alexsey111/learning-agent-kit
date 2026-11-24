@@ -37,6 +37,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+import selfcheck  # локальный модуль: демо-проверка ответов по keys/block_N_check.json
+
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
 
@@ -211,6 +213,9 @@ class Handler(BaseHTTPRequestHandler):
                            "text/plain; charset=utf-8")
                 return
             payload["session"] = read_session()
+            # Демо-инстанс приносит keys/block_N_check.json: страница сразу говорит,
+            # что проверка будет внутри тренажёра, а не у агента.
+            payload["demo"] = selfcheck.has_check(Cfg.study)
             self._send(200, render_html(payload).encode("utf-8"), "text/html; charset=utf-8")
             return
         if path == "/favicon.ico":
@@ -330,15 +335,29 @@ class Handler(BaseHTTPRequestHandler):
         js.write_text(json.dumps({"session": session, "saved_at": stamp, "title": title,
                                   "answers": answers}, ensure_ascii=False, indent=2),
                       encoding="utf-8")
+
+        # Демо-инстанс: образец ответа рядом с ключом -> балл и разбор прямо в браузере.
+        demo = selfcheck.score(Cfg.study, session, answers)
+        demo_txt = ""
+        if demo is not None:
+            demo_txt = str(Cfg.answers() / f"block_{session}_razbor_demo.txt")
+            Path(demo_txt).write_text(selfcheck.render_razbor(demo, session), encoding="utf-8")
+            demo["razbor_path"] = demo_txt
+
         print("", flush=True)
         print("=" * 60, flush=True)
         print(f"ОТВЕТЫ СОХРАНЕНЫ: {txt}", flush=True)
         print(f"Отвечено {len(order) - len(empty)} из {total_q}; без ответа: "
               f"{', '.join(empty) or 'нет'}", flush=True)
+        if demo is not None:
+            print(f"ДЕМО-ПРОВЕРКА: {demo['score']:g} из {demo['max']:g} баллов "
+                  f"(по ключевым числам, не по смыслу).", flush=True)
+            print(f"Разбор: {demo_txt}", flush=True)
         print("Скажи ассистенту «готово». Окно можно закрыть.", flush=True)
         print("=" * 60, flush=True)
         self._json(200, {"ok": True, "stamp": stamp, "path": str(txt),
-                         "answered": len(order) - len(empty), "total": total_q, "empty": empty})
+                         "answered": len(order) - len(empty), "total": total_q, "empty": empty,
+                         "selfcheck": demo})
 
 
 def pick_port(start: int, tries: int = 12) -> int:

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Демо-урок — скидка и наценка: от чего считаются проценты</title>
+<style>
+  :root { --bg:#0e1116; --fg:#e8edf4; --dim:#9aa7b8; --line:#24303f; --acc:#5aa9ff; --ok:#61d095; --bad:#ff7a7a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.6 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .bar { position:sticky; top:0; display:flex; gap:12px; align-items:center; justify-content:space-between;
+         padding:10px 16px; background:var(--bg); border-bottom:1px solid var(--line); z-index:5; }
+  .bar b { font-size:14px; letter-spacing:.02em; }
+  .steps { display:flex; gap:5px; }
+  .steps i { width:22px; height:5px; border-radius:3px; background:var(--line); display:block; }
+  .steps i.on { background:var(--acc); }
+  main { max-width:760px; margin:0 auto; padding:22px 16px 130px; }
+  h1 { font-size:26px; line-height:1.25; margin:6px 0 14px; }
+  p { margin:0 0 14px; }
+  .dim { color:var(--dim); }
+  .big { font-size:19px; }
+  button { font:inherit; min-height:44px; padding:10px 16px; border-radius:10px; border:1px solid var(--line);
+           background:#1a2330; color:var(--fg); cursor:pointer; }
+  button:hover { border-color:var(--acc); }
+  button:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 14px; align-items:center; }
+  .out { background:#141a22; border:1px solid var(--line); border-left:3px solid var(--acc); border-radius:8px;
+         padding:12px 14px; margin:10px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .note { border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#131923; }
+  input[type=number] { font:inherit; width:120px; min-height:44px; padding:8px 10px; border-radius:10px;
+                       border:1px solid var(--line); background:#141a22; color:var(--fg); }
+  nav { position:fixed; bottom:0; left:0; right:0; display:flex; justify-content:space-between; gap:10px;
+        padding:12px 16px; background:#0e1116f2; border-top:1px solid var(--line); }
+  nav button { min-width:130px; }
+  .demo { background:#182231; border:1px solid var(--acc); border-left:4px solid var(--acc); border-radius:10px;
+          padding:12px 14px; margin:0 0 18px; font-size:14px; }
+  .demo b { color:var(--acc); }
+</style>
+</head>
+<body>
+<div class="bar"><b>Демо-урок — скидка и наценка</b><div class="steps" id="steps"></div><b id="hint" class="dim">Экран 1 из 4</b></div>
+<main id="content"></main>
+<nav><button id="prev">← назад</button><button id="next">далее →</button></nav>
+
+<script>
+const TOTAL = 4;
+const CREDIT = `<div style="margin:26px 0 8px;font-size:12px;line-height:1.5;color:#6b7a8d">learning-agent-kit · Алексей Перминов (Alexsey111) · <a href="https://github.com/Alexsey111/learning-agent-kit" style="color:#6b7a8d">исходники</a></div>`;
+let cur = 0;
+
+const S = [
+  // 1
+  `<div class="demo"><b>Это демо-урок.</b> Тема взята для примера — скидка и наценка. Дальше
+   будет блок из трёх вопросов, и тренажёр сразу покажет балл и разбор.</div>
+   <h1>Процент — это доля от какой-то базы</h1>
+   <p>20% от 1000 ₽ — это 200 ₽. Но 20% от 800 ₽ — уже 160 ₽: процент от базы, то есть от той
+   цены, от которой его считают. Одно и то же «20%» даёт разные деньги, если база разная.</p>
+   <p>Поэтому первый вопрос в любой задаче — не «сколько процентов», а «от чего считаем».</p>
+   <div class="row">
+     <label>цена: <input id="price" type="number" value="1000" min="0" step="1"></label>
+     <button id="b1">скидка 20%</button>
+   </div>
+   <div class="out" id="o1">нажми «скидка 20%» — увидишь, сколько это в рублях</div>
+   <div class="note dim">Проверь себя: поставь 800 и нажми ещё раз. Скидка осталась 20%, а рубли
+   изменились. Почему?</div>`,
+  // 2
+  `<h1>Наценка считается от новой цены, а не от старой</h1>
+   <p>Магазин поднял цену до 800 ₽ и делает наценку 20%. Это не возврат к 1000 ₽: процент
+   берут от 800, а не от 1000. Наценка 160 ₽, цена 960 ₽.</p>
+   <p>От чего считается процент — вот главная развилка. Ошибка в базе даёт не «немного
+   неточно», а другие деньги: до 1000 ₽ не хватает 40 ₽.</p>
+   <div class="row"><button id="b2">наценка 20% к 800 ₽</button></div>
+   <div class="out" id="o2">нажми кнопку — увидишь, откуда берутся 160 ₽</div>
+   <div class="note dim">Проверь себя: почему 20% вниз и 20% вверх не возвращают цену?</div>`,
+  // 3
+  `<h1>Возврат к исходной цене — это не 20%, а 25%</h1>
+   <p>Вернуть 800 ₽ к 1000 ₽ — значит добавить 200 ₽. Но 200 ₽ от 800 ₽ — это 25%, а не 20%.
+   Процент возврата всегда считается от той цены, которая есть сейчас.</p>
+   <div class="row">
+     <label>сейчас: <input id="now" type="number" value="800" min="1" step="1"></label>
+     <label>цель: <input id="goal" type="number" value="1000" min="1" step="1"></label>
+     <button id="b3">сколько процентов вернёт цену</button>
+   </div>
+   <div class="out" id="o3">нажми кнопку — увидишь нужный процент</div>
+   <div class="note dim">Проверь себя: сколько процентов надо снять с 1000, чтобы получить 800?
+   (20%) А добавить к 800? (25%) Почему числа разные?</div>`,
+  // 4
+  `<h1>Проверка на калькуляторе: два шага подряд</h1>
+   <p>Скидка и наценка идут по очереди, каждая к текущей цене. Поэтому 1000 → −20% → +20% даёт
+   960, а не 1000. Проверка на калькуляторе занимает десять секунд и снимает половину бытовых
+   ошибок.</p>
+   <p>Дальше — блок из трёх вопросов. Это проверка, а не обучение: «не знаю» — нормальный ответ,
+   он ничего не портит.</p>
+   <div class="row">
+     <label>цена: <input id="p4" type="number" value="1000" min="0" step="1"></label>
+     <button id="b4a">скидка 20%</button>
+     <button id="b4b">наценка 20%</button>
+     <button id="b4r">сбросить</button>
+   </div>
+   <div class="out" id="o4">нажми «скидка 20%», потом «наценка 20%» — цепочка видна в числах</div>
+   <div class="note dim">Проверь себя: сколько получилось и почему не 1000?</div>`
+];
+
+function render() {
+  document.getElementById('content').innerHTML = S[cur] + CREDIT;
+  document.getElementById('hint').textContent = `Экран ${cur + 1} из ${TOTAL}`;
+  document.getElementById('steps').innerHTML = Array.from({length: TOTAL}, (_, i) =>
+    `<i class="${i <= cur ? 'on' : ''}"></i>`).join('');
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').textContent = cur === TOTAL - 1 ? 'к блоку →' : 'далее →';
+  wire();
+  // прогресс пишем на каждом экране: по логу видно, дошёл человек до блока или закрыл на втором
+  fetch('/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page: 'lesson', screen: cur + 1, total: TOTAL }) }).catch(() => {});
+}
+
+const money = (n) => Math.round(n * 100) / 100;
+
+function wire() {
+  const q = (id) => document.getElementById(id);
+  if (q('b1')) q('b1').onclick = () => {
+    const p = Number(q('price').value) || 0;
+    const d = money(p * 0.2);
+    q('o1').textContent = `процент от базы: 20% от ${money(p)} ₽ = ${d} ₽\n` +
+      `скидка ${d} ₽\nцена после скидки: ${money(p - d)} ₽\n\n` +
+      `проверка: ${money(p)} × (1 − 0,2) = ${money(p - d)}`;
+  };
+  if (q('b2')) q('b2').onclick = () => {
+    q('o2').textContent = `наценка: 20% от 800 ₽ = 160 ₽\n` +
+      `цена: 800 + 160 = 960 ₽\nдо 1000 ₽ не хватает 40 ₽\n\n` +
+      `от чего считается процент: база — 800 ₽, а не 1000 ₽`;
+  };
+  if (q('b3')) q('b3').onclick = () => {
+    const now = Number(q('now').value) || 1;
+    const goal = Number(q('goal').value) || 0;
+    const diff = money(goal - now);
+    const pct = money(diff / now * 100);
+    q('o3').textContent = `добавить надо ${diff} ₽\n` +
+      `процент возврата: ${diff} / ${money(now)} = ${pct}%\n\n` +
+      `проверка: ${money(now)} × ${money(1 + pct / 100)} = ${money(now * (1 + pct / 100))}\n` +
+      `для сравнения: 20% дали бы ${money(now * 0.2)} ₽ и цену ${money(now * 1.2)} ₽`;
+  };
+  if (q('b4a')) {
+    let chain = Number(q('p4').value) || 0;
+    const show = (text) => {
+      q('o4').textContent = `${text}\n\nтекущая цена: ${money(chain)} ₽`;
+    };
+    q('b4a').onclick = () => {
+      const d = money(chain * 0.2);
+      chain = money(chain - d);
+      show(`скидка 20%: −${d} ₽ → ${money(chain)} ₽`);
+    };
+    q('b4b').onclick = () => {
+      const d = money(chain * 0.2);
+      chain = money(chain + d);
+      show(`наценка 20%: +${d} ₽ → ${money(chain)} ₽`);
+    };
+    q('b4r').onclick = () => {
+      chain = Number(q('p4').value) || 0;
+      show('сброшено к стартовой цене');
+    };
+  }
+}
+
+document.getElementById('prev').onclick = () => { if (cur > 0) { cur--; render(); } };
+document.getElementById('next').onclick = async () => {
+  if (cur < TOTAL - 1) { cur++; render(); return; }
+  // последний экран: снять флаг входа и перейти к блоку
+  try {
+    const r = await fetch('/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: 'lesson', total: TOTAL, finished: true }) });
+    if (!r.ok) throw new Error('bad');
+    location.href = '/';
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      `<h1>Сервер тренажёра закрыт</h1><p>Урок пройден, но страница не может перейти к блоку: сервер уже не отвечает.</p>
+       <p class="dim">Запусти start.cmd заново, обнови вкладку и нажми «к блоку» ещё раз.</p>
+       <div class="row"><button id="retry">проверить снова</button></div>
+       <div class="out" id="ro">проверка не запускалась</div>`;
+    document.getElementById('retry').onclick = async () => {
+      try {
+        const r = await fetch('/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page: 'lesson', total: TOTAL, finished: true }) });
+        if (r.ok) location.href = '/'; else throw new Error('bad');
+      } catch (e2) { document.getElementById('ro').textContent = 'всё ещё не отвечает: сервер не поднят'; }
+    };
+  }
+};
+render();
+</script>
+</body>
+</html>
