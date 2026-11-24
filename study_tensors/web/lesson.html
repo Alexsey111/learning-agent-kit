@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 0 — Тензоры: что это, зачем и как с ними работать</title>
+<style>
+  :root{--bg:#12151a;--card:#1a1f27;--card2:#212833;--line:#2c3541;--fg:#e6e9ee;--dim:#9aa5b4;
+        --acc:#5aa9ff;--ok:#3ecf8e;--warn:#e5b567;--bad:#ff8a8a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 "Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;padding:26px 20px 120px}
+  h1{font-size:23px;line-height:1.3;margin:0 0 6px}
+  .sub{color:var(--dim);font-size:14px;margin-bottom:20px}
+  .steps{display:flex;gap:6px;margin:0 0 22px}
+  .steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+  .steps i.on{background:var(--acc)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+  .card h2{font-size:20px;margin:0 0 10px}
+  .stage{background:#0d1218;border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 14px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+       padding:8px 14px;font:inherit;font-size:15px;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+  .btn:hover{border-color:var(--acc);color:var(--acc)}
+  .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
+  .btn.primary:hover{filter:brightness(1.1);color:#08111c}
+  .btn:disabled{opacity:.45;cursor:default}
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--acc);outline-offset:2px}
+  pre{background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:15px;
+      white-space:pre-wrap;margin:0 0 14px;font-family:Consolas,monospace}
+  .note{color:var(--dim);font-size:14px}
+  .out{margin-top:12px;font-size:15px;color:#cfd6e0;min-height:22px}
+  .out b{color:var(--acc)}
+  .out .err{color:var(--bad)}
+  .out .good{color:var(--ok)}
+  .why{background:#12161d;border-left:3px solid var(--acc);border-radius:0 8px 8px 0;padding:10px 14px;margin-top:12px;font-size:15px;color:#cfd6e0}
+  .why b{color:var(--acc)}
+  /* сетка чисел: одна «коробка» тензора */
+  .grid{display:inline-grid;gap:6px;margin:6px 0}
+  .cell{min-width:52px;height:44px;display:flex;align-items:center;justify-content:center;
+        background:var(--card2);border:1px solid var(--line);border-radius:7px;font-variant-numeric:tabular-nums}
+  .cell.hl{background:#2b4a6b;border-color:var(--acc)}
+  .cell.rowhl{background:#1f3346;border-color:#3f6d99}
+  .nest{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .tag{font-size:13px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+  .kv{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+  .kv div{font-size:15px}
+  .kv b{color:var(--acc)}
+  .nav{display:flex;gap:10px;justify-content:space-between;margin-top:6px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#0e1116;border-top:1px solid var(--line);
+       padding:10px 20px;display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;
+       font-size:14px;color:var(--dim)}
+  #state{color:var(--dim)}
+  @media print{.bar,.nav{display:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Урок 0 — Тензоры: что это, зачем и как с ними работать</h1>
+  <div class="sub">Пять экранов, 12–15 минут. Здесь всё можно нажимать: каждая ручка считает по-настоящему, на памяти проверять не нужно.</div>
+  <div class="steps" id="steps"></div>
+  <div id="content"></div>
+  <div class="nav">
+    <button class="btn" id="prev">← назад</button>
+    <button class="btn primary" id="next">дальше →</button>
+  </div>
+</div>
+<div class="bar"><span id="hint">Экран 1 из 5</span><span id="state"></span></div>
+
+<script>
+const SESSION = Number("__SESSION__") || 0;
+const TOTAL = 5;
+let screen = 0, finished = false;
+
+const stepsEl = document.getElementById("steps");
+for (let i = 0; i < TOTAL; i++) stepsEl.appendChild(document.createElement("i"));
+
+function progress(finish) {
+  fetch("/progress", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({session: SESSION, page: "lesson", screen: Math.min(screen + 1, TOTAL),
+                          total: TOTAL, finished: !!finish})
+  }).catch(() => {});
+}
+
+const grid = (rows, cls) => rows.map(r =>
+  `<div style="display:flex;gap:6px">${r.map(v =>
+    `<div class="cell ${cls || ""}" data-v="${v}">${v}</div>`).join("")}</div>`).join("");
+
+// ---------- экран 1: что такое тензор -------------------------------------------
+function screen1() {
+  return `
+  <div class="card">
+    <h2>Тензор — это коробка с числами, у которой есть форма</h2>
+    <p>Одно число, вектор и матрица — не разные вещи, а одна и та же коробка с разным числом осей.
+       Сколько осей — столько и «измерений»; это число называют рангом.</p>
+    <div class="stage">
+      <div class="row">
+        <button class="btn" data-k="0">число 5</button>
+        <button class="btn" data-k="1">[1, 2, 3]</button>
+        <button class="btn" data-k="2">матрица 2×3</button>
+      </div>
+      <div class="out" id="s1out"></div>
+    </div>
+    <div class="why"><b>Зачем это.</b> Нейросеть не умеет «понимать» картинку или текст — она умеет
+      умножать и складывать числа. Тензор — это способ сказать, <i>как именно</i> эти числа разложены:
+      по каким осям их складывать, какие размеры можно перемножить, а какие нет. Ошибка «shape mismatch»
+      в 9 случаях из 10 — это ответ на вопрос «сколько осей ты обещал».</div>
+  </div>`;
+}
+
+function wire1() {
+  const out = document.getElementById("s1out");
+  const show = (k) => {
+    if (k === 0) {
+      out.innerHTML = `<div class="nest"><span class="tag">ранг 0</span>
+        <div class="cell">5</div>
+        <span>shape: <b>()</b> — пустая форма, ноль осей, одно число</span></div>`;
+    } else if (k === 1) {
+      out.innerHTML = `<span class="tag">ранг 1 · shape (3,)</span>
+        <div class="grid">${grid([[1, 2, 3]])}</div>
+        <div class="kv"><div>осей: <b>1</b></div><div>чисел: <b>3</b></div><div>это <b>вектор</b></div></div>`;
+    } else {
+      out.innerHTML = `<span class="tag">ранг 2 · shape (2, 3)</span>
+        <div class="grid">${grid([[1, 2, 3], [4, 5, 6]])}</div>
+        <div class="kv"><div>осей: <b>2</b></div><div>чисел: <b>6</b></div>
+        <div>строк: <b>2</b> · столбцов: <b>3</b></div></div>`;
+    }
+    out.querySelectorAll(".btn") || null;
+  };
+  document.querySelectorAll("[data-k]").forEach(b => b.onclick = () => show(Number(b.dataset.k)));
+  show(1);
+}
+
+// ---------- экран 2: форма и reshape --------------------------------------------
+function screen2() {
+  return `
+  <div class="card">
+    <h2>Форма: одни и те же числа, разные обёртки</h2>
+    <p>Шесть чисел можно разложить по-разному. Числа при этом не меняются — меняется только то,
+       как они разложены по осям.</p>
+    <div class="stage">
+      <div class="row">
+        <button class="btn" data-shape="2,3">reshape(2, 3)</button>
+        <button class="btn" data-shape="3,2">reshape(3, 2)</button>
+        <button class="btn" data-shape="1,6">reshape(1, 6)</button>
+        <button class="btn" data-shape="6">reshape(6,)</button>
+        <button class="btn" data-shape="4,2">reshape(4, 2)</button>
+      </div>
+      <div class="out" id="s2out"></div>
+    </div>
+    <div class="why"><b>Правило одно:</b> число элементов до и после должно совпасть. 6 = 2×3 = 3×2 = 1×6 = 6.
+      В 4×2 восемь клеток — reshape откажется, и это не каприз библиотеки, а арифметика.
+      <b>Зачем:</b> картинку 28×28 превращают в вектор из 784 чисел именно reshape, прежде чем отдать
+      его первому слою сети.</div>
+  </div>`;
+}
+
+function wire2() {
+  const out = document.getElementById("s2out");
+  const six = [1, 2, 3, 4, 5, 6];
+  const draw = (shape) => {
+    const dims = shape.split(",").map(Number);
+    const n = dims.reduce((a, b) => a * b, 1);
+    if (n !== six.length) {
+      out.innerHTML = `<span class="err">нельзя: ${dims.join(" × ")} = ${n} клеток, а чисел ${six.length}.</span>
+        <div class="note">reshape не создаёт и не теряет числа — только перекладывает их в другую сетку.</div>`;
+      return;
+    }
+    let rows;
+    if (dims.length === 1) rows = [six.slice()];
+    else {
+      rows = [];
+      for (let i = 0; i < dims[0]; i++) rows.push(six.slice(i * dims[1], (i + 1) * dims[1]));
+    }
+    out.innerHTML = `<span class="tag">shape (${dims.join(", ")})</span>
+      <div class="grid">${grid(rows)}</div>
+      <div class="kv"><div>осей: <b>${dims.length}</b></div><div>чисел: <b>${six.length}</b></div></div>`;
+  };
+  document.querySelectorAll("[data-shape]").forEach(b => b.onclick = () => draw(b.dataset.shape));
+  draw("2,3");
+}
+
+// ---------- экран 3: поэлементно и broadcasting ---------------------------------
+function screen3() {
+  return `
+  <div class="card">
+    <h2>Сложение: клетка к клетке, а если формы разные — растягиваем</h2>
+    <p>Матрица <code>A</code> — те же 2×3. Что будет, если прибавить число, вектор из трёх чисел
+       и вектор из двух?</p>
+    <div class="stage">
+      <div class="tag">A · shape (2, 3)</div>
+      <div class="grid">${grid([[1, 2, 3], [4, 5, 6]])}</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" data-op="mul">A × 2</button>
+        <button class="btn" data-op="plus3">A + [10, 20, 30]</button>
+        <button class="btn" data-op="plus2">A + [10, 20]</button>
+      </div>
+      <div class="out" id="s3out"></div>
+    </div>
+    <div class="why"><b>Правило.</b> Формы выравнивают справа: (2, 3) и (3,) — это (2, 3) и (1, 3),
+      двойка растягивается на две строки. Формы (2, 3) и (2,) выравниваются в (2, 3) и (1, 2) —
+      последняя ось 3 против 2, и сложение запрещено. <b>Зачем:</b> так к батчу из 32 примеров
+      прибавляют одно смещение на 128 чисел — не копируя его 32 раза вручную.</div>
+  </div>`;
+}
+
+function wire3() {
+  const out = document.getElementById("s3out");
+  const A = [[1, 2, 3], [4, 5, 6]];
+  const draw = (rows, caption) => {
+    out.innerHTML = `<span class="tag">${caption}</span><div class="grid">${grid(rows)}</div>`;
+  };
+  document.querySelector("[data-op='mul']").onclick = () =>
+    draw(A.map(r => r.map(v => v * 2)), "A × 2 · shape (2, 3)");
+  document.querySelector("[data-op='plus3']").onclick = () =>
+    draw(A.map(r => r.map((v, j) => v + [10, 20, 30][j])), "A + [10, 20, 30] · shape (2, 3)");
+  document.querySelector("[data-op='plus2']").onclick = () => {
+    out.innerHTML = `<span class="err">нельзя: последняя ось у A равна 3, у вектора — 2.</span>
+      <div class="note">Вектор из двух чисел подошёл бы к матрице с двумя столбцами: (2, 2) + (2,).</div>`;
+  };
+  draw(A.map(r => r.map(v => v * 2)), "A × 2 · shape (2, 3)");
+}
+
+// ---------- экран 4: умножение матриц ------------------------------------------
+function screen4() {
+  return `
+  <div class="card">
+    <h2>Умножение матриц: не клетка на клетку, а строка на столбец</h2>
+    <p>Умножение — единственная операция, где форма результата не совпадает с формой входа.
+       Нажми на клетку результата: покажу, из чего она собралась.</p>
+    <div class="stage">
+      <div class="nest">
+        <div><div class="tag">A · (2, 3)</div>
+          <div class="grid" id="gA">${grid([[1, 2, 3], [4, 5, 6]])}</div></div>
+        <div style="font-size:22px">@</div>
+        <div><div class="tag">B · (3, 2)</div>
+          <div class="grid" id="gB">${grid([[1, 0], [0, 1], [1, 1]])}</div></div>
+        <div style="font-size:22px">=</div>
+        <div><div class="tag">C · (2, 2)</div>
+          <div class="grid" id="gC">${grid([[4, 5], [10, 11]])}</div></div>
+      </div>
+      <div class="out" id="s4out">нажми на любую клетку C</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="bad">а если A @ A ?</button>
+      </div>
+    </div>
+    <div class="why"><b>Правило.</b> (n, k) @ (k, m) → (n, m): внутренние оси обязаны совпасть, внешние
+      дают форму результата. У A @ A внутренние 3 и 2 — разные, поэтому ошибка.
+      <b>Зачем:</b> слой сети — это ровно такое умножение: батч (32, 784) на веса (784, 128) даёт
+      (32, 128). Внутренняя ось 784 — «сколько признаков у одного примера», внешняя 32 — «сколько примеров».</div>
+  </div>`;
+}
+
+function wire4() {
+  const A = [[1, 2, 3], [4, 5, 6]];
+  const B = [[1, 0], [0, 1], [1, 1]];
+  const C = [[4, 5], [10, 11]];
+  const out = document.getElementById("s4out");
+  const cellsA = [...document.querySelectorAll("#gA .cell")];
+  const cellsB = [...document.querySelectorAll("#gB .cell")];
+  const cellsC = [...document.querySelectorAll("#gC .cell")];
+  cellsC.forEach((cell, idx) => {
+    cell.style.cursor = "pointer";
+    cell.onclick = () => {
+      const i = Math.floor(idx / 2), j = idx % 2;
+      cellsA.forEach((c, k) => c.classList.toggle("rowhl", Math.floor(k / 3) === i));
+      cellsB.forEach((c, k) => c.classList.toggle("rowhl", (k % 2) === j));
+      cellsC.forEach(c => c.classList.remove("hl"));
+      cell.classList.add("hl");
+      const parts = A[i].map((v, k) => `${v}×${B[k][j]}`).join(" + ");
+      out.innerHTML = `C[${i}][${j}] = строка ${i + 1} матрицы A × столбец ${j + 1} матрицы B =
+        ${parts} = <b>${C[i][j]}</b>`;
+    };
+  });
+  document.getElementById("bad").onclick = () => {
+    out.innerHTML = `<span class="err">A @ A нельзя: внутренние оси 3 и 2 не совпадают.</span>
+      <div class="note">Совпали бы у (2, 3) @ (3, 3) — тогда результат был бы (2, 3).</div>`;
+  };
+}
+
+// ---------- экран 5: зачем это в нейросети --------------------------------------
+function screen5() {
+  return `
+  <div class="card">
+    <h2>Зачем это всё: батч × веса × смещение × ReLU</h2>
+    <p>Один слой сети — это три операции подряд. Пройди их по шагам, числа настоящие.</p>
+    <div class="stage">
+      <div class="nest">
+        <div><div class="tag">X · (2, 3) батч</div>
+          <div class="grid">${grid([[1, 2, 3], [4, 5, 6]])}</div></div>
+        <div style="font-size:22px">@</div>
+        <div><div class="tag">W · (3, 2) веса</div>
+          <div class="grid">${grid([[1, 0], [0, 1], [1, 1]])}</div></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" data-step="1">1. умножить X @ W</button>
+        <button class="btn" data-step="2">2. прибавить смещение b</button>
+        <button class="btn" data-step="3">3. применить ReLU</button>
+      </div>
+      <div class="out" id="s5out"></div>
+    </div>
+    <div class="why"><b>Что произошло.</b> Умножение превратило три признака в два выхода для каждого
+      из двух примеров. Смещение (одно на выход) растянулось на оба примера. ReLU обнулил отрицательное.
+      Батч-ось 2 не участвовала в умножении — она просто «сколько примеров сразу».
+      <b>Отсюда:</b> 32 картинки 28×28 → reshape (32, 784) → Linear(784, 128) → (32, 128).
+      Подашь один пример как (784,) — получишь (128,): батч-ось пропала, и следующий слой, который
+      ждёт «примеров × признаков», сломается.</div>
+  </div>`;
+}
+
+function wire5() {
+  const out = document.getElementById("s5out");
+  const steps = {
+    1: `<span class="tag">z = X @ W · shape (2, 2)</span>
+        <div class="grid">${grid([[4, 5], [10, 11]])}</div>
+        <div class="note">1×1+2×0+3×1 = 4 · 1×0+2×1+3×1 = 5 · строка 2: 4+0+6 = 10, 0+5+6 = 11</div>`,
+    2: `<span class="tag">z + b, b = (1, −10) · shape (2, 2)</span>
+        <div class="grid">${grid([[5, -5], [11, 1]])}</div>
+        <div class="note">смещение (2,) растянулось на обе строки: к первому столбцу +1, ко второму −10</div>`,
+    3: `<span class="tag">ReLU(z) · shape (2, 2)</span>
+        <div class="grid">${grid([[5, 0], [11, 1]])}</div>
+        <div class="note">всё, что меньше нуля, стало нулём: −5 → 0. Форма не изменилась — ReLU работает
+        клетка к клетку.</div>`
+  };
+  document.querySelectorAll("[data-step]").forEach(b => b.onclick = () => {
+    out.innerHTML = steps[b.dataset.step];
+  });
+  out.innerHTML = steps[1];
+}
+
+// ---------- навигация ----------------------------------------------------------
+const RENDER = [screen1, screen2, screen3, screen4, screen5];
+const WIRE = [wire1, wire2, wire3, wire4, wire5];
+
+function draw() {
+  for (const i of stepsEl.children) i.className = "";
+  for (let i = 0; i <= screen; i++) stepsEl.children[i].className = "on";
+  document.getElementById("content").innerHTML = RENDER[screen]();
+  WIRE[screen]();
+  document.getElementById("hint").textContent = `Экран ${screen + 1} из ${TOTAL}`;
+  document.getElementById("prev").disabled = screen === 0;
+  document.getElementById("next").textContent = screen === TOTAL - 1 ? "к игре →" : "дальше →";
+  progress(false);
+}
+
+document.getElementById("next").onclick = () => {
+  if (screen === TOTAL - 1) {
+    if (!finished) { finished = true; progress(true); }
+    location.href = "/game.html";
+    return;
+  }
+  screen++;
+  draw();
+};
+document.getElementById("prev").onclick = () => { if (screen > 0) { screen--; draw(); } };
+
+draw();
+</script>
+</body>
+</html>

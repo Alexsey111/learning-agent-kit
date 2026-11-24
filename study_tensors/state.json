@@ -1,0 +1,42 @@
+{
+  "track": "personal-nn-track",
+  "session": 1,
+  "status": "awaiting_lesson",
+  "current_topic": "tensors_basics",
+  "phase": "zero",
+  "topics_order": [
+    "tensors_basics",
+    "autograd_and_loss",
+    "layer_and_activation",
+    "training_loop",
+    "first_network"
+  ],
+  "session_plan": [
+    "урок 0: пять экранов про форму, reshape, broadcasting, умножение матриц и батч на веса",
+    "игра: шесть раундов «предскажи форму и результат»",
+    "блок 1: 3 вопроса по 2 балла, 10 минут, без подсказок"
+  ],
+  "track_note": "Личный трек по нейросетям, начатый с тензоров. Нулевой старт по брифу: урок, игра, короткий блок.",
+  "review_queue": [],
+  "gaps": [],
+  "history": [
+    {
+      "session": 1,
+      "date": "2026-11-24",
+      "event": "нулевой старт: урок 0, игра и блок 1 собраны, ключ написан до ответов"
+    }
+  ],
+  "rules": {
+    "max_new_gaps_per_session": 2,
+    "review_offsets": [
+      3,
+      10
+    ],
+    "questions_per_block": "6-8, из них 2-3 возврата; первый после урока — 3",
+    "max_razborov_per_session": 2,
+    "max_blocks_per_day": 1
+  },
+  "next_step": "пройти урок 0 (5 экранов), затем игру (6 раундов), затем блок 1 (3 вопроса, 10 минут)",
+  "intake_file": "INTAKE_filled.md",
+  "topic_plan_file": "topic_plan.md"
+}
