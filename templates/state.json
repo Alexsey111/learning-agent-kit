@@ -1,0 +1,24 @@
+{
+  "track": "<направление: например python-junior / qa-middle / data-analyst>",
+  "session": 1,
+  "status": "block_issued",
+  "current_topic": "<id темы из topics_order>",
+  "topics_order": ["units", "metrics", "quality", "delivery"],
+  "session_plan": "сессия 1: диагностика. 30 вопросов по четырём слоям, ключ написан до ответов.",
+  "track_note": "",
+  "review_queue": [],
+  "gaps": [],
+  "history": [],
+  "rules": {
+    "max_new_gaps_per_session": 2,
+    "review_offsets": [3, 10],
+    "questions_per_block": "6-8, из них 2-3 возврата",
+    "max_razborov_per_session": 2,
+    "max_blocks_per_day": 1
+  },
+  "next_step": "сессия 1: собрать диагностику в study/current.txt и запустить start.cmd",
+  "phase": "diagnostic",
+  "stack": "<стек или роль>",
+  "intake_file": "study/INTAKE_filled.md",
+  "topic_plan_file": "study/topic_plan.md"
+}

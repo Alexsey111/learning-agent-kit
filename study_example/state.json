@@ -1,0 +1,24 @@
+{
+  "track": "python-junior",
+  "session": 1,
+  "status": "block_issued",
+  "current_topic": "objects-and-data",
+  "topics_order": ["objects-and-data", "functions-and-tests", "http-and-db", "delivery"],
+  "session_plan": "сессия 1: первый блок-пример. Проверяет алиасы, срезы, словари, генераторы, индекс и гонку.",
+  "track_note": "Пример инстанса для принимающего агента: показывает формат state.json и первого блока. Своя диагностика начинается с фазы 2 брифинга.",
+  "review_queue": [],
+  "gaps": [],
+  "history": [],
+  "rules": {
+    "max_new_gaps_per_session": 2,
+    "review_offsets": [3, 10],
+    "questions_per_block": "6-8, из них 2-3 возврата",
+    "max_razborov_per_session": 2,
+    "max_blocks_per_day": 1
+  },
+  "next_step": "start.cmd -> блок 1 (это пример; после проверки сессия станет 2 и блок соберётся заново)",
+  "phase": "block",
+  "stack": "Python 3.11+, SQL, HTTP",
+  "intake_file": "study/INTAKE_filled.md",
+  "topic_plan_file": "study/topic_plan.md"
+}

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тренажёр — блок</title>
+<style>
+  :root{
+    --bg:#12151a; --card:#1a1f27; --card2:#212833; --line:#2c3541;
+    --fg:#e6e9ee; --dim:#9aa5b4; --acc:#5aa9ff; --ok:#3ecf8e; --warn:#e5b567;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font:17px/1.6 "Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 20px 140px}
+  h1{font-size:24px;line-height:1.3;margin:0 0 6px}
+  .sub{color:var(--dim);font-size:14px;margin-bottom:26px}
+  h2.sec{font-size:13px;letter-spacing:.10em;text-transform:uppercase;color:var(--acc);
+    margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  p{color:#cfd6e0;margin:0 0 14px}
+  .q{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:18px 18px 14px;margin:0 0 16px}
+  .q .num{display:inline-block;min-width:28px;height:28px;line-height:28px;text-align:center;
+    background:var(--acc);color:#08111c;font-weight:700;border-radius:8px;margin-right:10px;font-size:15px}
+  .q .txt{font-weight:600}
+  .q .head{display:flex;gap:6px;margin-bottom:10px}
+  textarea{width:100%;min-height:96px;resize:vertical;background:var(--card2);color:var(--fg);
+    border:1px solid var(--line);border-radius:9px;padding:11px 12px;font:inherit;font-size:16px;line-height:1.55}
+  textarea:focus{outline:none;border-color:var(--acc)}
+  textarea::placeholder{color:#6b7684}
+  .tools{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+    padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--acc);color:var(--acc)}
+  .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
+  .btn.primary:hover{filter:brightness(1.1);color:#08111c}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#0e1116ee;backdrop-filter:blur(6px);
+    border-top:1px solid var(--line);padding:12px 20px;display:flex;gap:16px;align-items:center;
+    justify-content:center;flex-wrap:wrap}
+  .bar .stat{color:var(--dim);font-size:14px}
+  .bar .stat b{color:var(--fg)}
+  #state{font-size:13px;color:var(--dim);min-width:132px;text-align:right}
+  .ok{color:var(--ok)} .warn{color:var(--warn)}
+  .done{background:var(--card);border:1px solid var(--ok);border-radius:12px;padding:26px;margin-top:20px}
+  .done h2{color:var(--ok);margin:0 0 12px;font-size:20px}
+  code{background:#0d1218;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:14px}
+  .hint{color:var(--dim);font-size:13px;margin-top:4px}
+  @media print{ .bar,.tools{display:none} body{background:#fff;color:#000} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title"></h1>
+  <div class="sub" id="sub"></div>
+  <div id="content"></div>
+  <div id="doneBox" class="done" hidden>
+    <h2>Сохранено</h2>
+    <p id="doneText"></p>
+    <p class="hint">Окно можно закрыть. Скажи ассистенту: «готово» — он прочитает файл с ответами.</p>
+  </div>
+</div>
+
+<div class="bar">
+  <span class="stat">Отвечено <b id="answered">0</b> из <b id="total">0</b></span>
+  <span class="stat">Время <b id="timer">00:00</b></span>
+  <span id="state">черновик не сохранён</span>
+  <button class="btn primary" id="saveBtn">Готово — сохранить</button>
+</div>
+
+<script>
+const DATA = __DATA__;
+const SESSION = DATA.session || 0;
+const DRAFT_KEY = "quiz_draft_s" + SESSION;
+const START_KEY = "quiz_start_s" + SESSION;
+const qs = DATA.blocks.filter(b => b.t === "q");
+
+document.getElementById("title").textContent = DATA.title || ("Блок " + SESSION);
+const subEl = document.getElementById("sub");
+subEl.textContent = "";
+if (DATA.subtitle) {
+  const line = document.createElement("div");
+  line.style.color = "#cfd6e0";
+  line.style.marginBottom = "6px";
+  line.textContent = DATA.subtitle;
+  subEl.appendChild(line);
+}
+const meta = document.createElement("div");
+const plural = (n, one, few, many) => {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+};
+meta.textContent = "Сессия " + SESSION + " · " + qs.length + " " +
+  plural(qs.length, "вопрос", "вопроса", "вопросов") + " · ответы сохраняются в study/answers/";
+subEl.appendChild(meta);
+
+const content = document.getElementById("content");
+const areas = {};
+for (const b of DATA.blocks) {
+  if (b.t === "h") {
+    const h = document.createElement("h2");
+    h.className = "sec"; h.textContent = b.text; content.appendChild(h);
+  } else if (b.t === "p") {
+    const p = document.createElement("p");
+    p.textContent = b.text; content.appendChild(p);
+  } else if (b.t === "q") {
+    const card = document.createElement("div");
+    card.className = "q";
+    const head = document.createElement("div");
+    head.className = "head";
+    const num = document.createElement("span");
+    num.className = "num"; num.textContent = b.num;
+    const txt = document.createElement("span");
+    txt.className = "txt"; txt.textContent = b.text;
+    // переносы строк в вопросе — это код из блока, их надо сохранить
+    txt.style.whiteSpace = "pre-wrap";
+    head.append(num, txt);
+    const ta = document.createElement("textarea");
+    ta.id = "q" + b.num;
+    ta.placeholder = "Пиши здесь. «не знаю» — нормальный ответ, угадывать не надо.";
+    ta.rows = 4;
+    areas[b.num] = ta;
+    const tools = document.createElement("div");
+    tools.className = "tools";
+    const bNo = document.createElement("button");
+    bNo.className = "btn"; bNo.textContent = "не знаю";
+    bNo.onclick = () => { ta.value = "не знаю"; ta.dispatchEvent(new Event("input")); ta.focus(); };
+    const bClr = document.createElement("button");
+    bClr.className = "btn"; bClr.textContent = "очистить";
+    bClr.onclick = () => { ta.value = ""; ta.dispatchEvent(new Event("input")); ta.focus(); };
+    tools.append(bNo, bClr);
+    card.append(head, ta, tools);
+    content.appendChild(card);
+  }
+}
+document.getElementById("total").textContent = qs.length;
+
+function collect() {
+  const o = {};
+  for (const k in areas) o[k] = areas[k].value;
+  return o;
+}
+function refreshCount() {
+  let n = 0;
+  for (const k in areas) if (areas[k].value.trim()) n++;
+  document.getElementById("answered").textContent = n;
+}
+const stateEl = document.getElementById("state");
+function setState(text, cls) { stateEl.textContent = text; stateEl.className = cls || ""; }
+
+let draft = null;
+try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (e) {}
+if (draft && draft.answers) {
+  for (const k in draft.answers) if (areas[k] != null) areas[k].value = draft.answers[k];
+}
+refreshCount();
+
+let t0 = Number(localStorage.getItem(START_KEY) || 0);
+if (!t0) { t0 = Date.now(); localStorage.setItem(START_KEY, String(t0)); }
+setInterval(() => {
+  const s = Math.floor((Date.now() - t0) / 1000);
+  document.getElementById("timer").textContent =
+    String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}, 1000);
+
+let timer = null;
+function scheduleSave() {
+  refreshCount();
+  const answers = collect();
+  localStorage.setItem(DRAFT_KEY, JSON.stringify({ answers, at: Date.now() }));
+  setState("сохраняю…", "warn");
+  clearTimeout(timer);
+  timer = setTimeout(() => pushDraft(answers), 1200);
+}
+function pushDraft(answers) {
+  fetch("/draft", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session: SESSION, answers })
+  }).then(r => r.json()).then(j => {
+    if (j.ok) setState("черновик " + j.stamp.slice(11), "ok");
+    else setState("ошибка черновика", "warn");
+  }).catch(() => setState("сервер не отвечает", "warn"));
+}
+for (const k in areas) areas[k].addEventListener("input", scheduleSave);
+
+const saveBtn = document.getElementById("saveBtn");
+saveBtn.onclick = () => {
+  const answers = collect();
+  const empty = Object.keys(answers).filter(k => !answers[k].trim());
+  if (empty.length && !confirm("Без ответа: " + empty.join(", ") + ". Всё равно сохранить?")) return;
+  saveBtn.disabled = true;
+  fetch("/save", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session: SESSION, answers })
+  }).then(r => r.json()).then(j => {
+    if (!j.ok) { saveBtn.disabled = false; setState("не сохранилось", "warn"); alert("Не сохранилось: " + j.error); return; }
+    localStorage.removeItem(DRAFT_KEY);
+    document.getElementById("doneBox").hidden = false;
+    document.getElementById("doneText").textContent =
+      "Отвечено " + j.answered + " из " + j.total + ". Файл: " + j.path;
+    setState("готово", "ok");
+    document.getElementById("doneBox").scrollIntoView({ behavior: "smooth" });
+  }).catch(e => { saveBtn.disabled = false; setState("сервер не отвечает", "warn"); alert("Сервер не отвечает: " + e); });
+};
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") saveBtn.click();
+});
+window.addEventListener("beforeunload", e => {
+  const answers = collect();
+  if (Object.values(answers).some(v => v.trim())) { e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+</body>
+</html>

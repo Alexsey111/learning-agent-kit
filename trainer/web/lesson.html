@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок — три кирпича кода</title>
+<style>
+  :root{--bg:#12151a;--card:#1a1f27;--card2:#212833;--line:#2c3541;--fg:#e6e9ee;--dim:#9aa5b4;
+        --acc:#5aa9ff;--ok:#3ecf8e;--warn:#e5b567}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 "Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:26px 20px 120px}
+  h1{font-size:23px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:14px;margin-bottom:18px}
+  .steps{display:flex;gap:6px;margin:0 0 22px}
+  .steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+  .steps i.on{background:var(--acc)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+  h2{font-size:20px;margin:0 0 10px}
+  p{color:#cfd6e0;margin:0 0 12px}
+  .stage{background:#0d1218;border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 14px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+       padding:8px 14px;font:inherit;font-size:15px;cursor:pointer}
+  .btn:hover{border-color:var(--acc);color:var(--acc)}
+  .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
+  .btn.primary:hover{filter:brightness(1.1);color:#08111c}
+  .btn:disabled{opacity:.45;cursor:default}
+  input[type=number]{width:90px;background:var(--card2);color:var(--fg);border:1px solid var(--line);
+       border-radius:8px;padding:7px 10px;font:inherit}
+  input[type=range]{width:100%}
+  textarea{width:100%;min-height:80px;background:var(--card2);color:var(--fg);border:1px solid var(--line);
+       border-radius:9px;padding:10px;font:inherit}
+  code,pre{background:#0d1218;border:1px solid var(--line);border-radius:6px;padding:2px 7px;
+       font-family:Consolas,monospace;font-size:15px}
+  pre{padding:12px;white-space:pre-wrap}
+  .why{border-left:3px solid var(--acc);background:#141a22;padding:10px 14px;border-radius:0 8px 8px 0;
+       color:#cfd6e0;font-size:15px}
+  .why b{color:var(--acc)}
+  .out{font-family:Consolas,monospace;font-size:16px;color:var(--ok);min-height:26px}
+  .bad{color:#ff8a8a}
+  .note{color:var(--dim);font-size:14px}
+  .nav{display:flex;gap:10px;justify-content:space-between;margin-top:8px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#0e1116ee;border-top:1px solid var(--line);
+       padding:10px 20px;display:flex;gap:14px;justify-content:center;color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Урок 0 — три кирпича, из которых собран любой код</h1>
+  <div class="sub">Пять экранов, 10 минут. Это не тест: здесь можно ошибаться и трогать руками.</div>
+  <div class="steps" id="steps"></div>
+  <div id="content"></div>
+  <div class="nav">
+    <button class="btn" id="prev">← назад</button>
+    <button class="btn primary" id="next">дальше →</button>
+  </div>
+</div>
+<div class="bar"><span id="hint">Экран 1 из 5</span><span id="state"></span></div>
+
+<script>
+const SESSION = Number("__SESSION__") || 0;
+const TOTAL = 5;
+let screen = 0;
+let finished = false;
+
+const steps = document.getElementById("steps");
+for (let i = 0; i < TOTAL; i++) steps.appendChild(document.createElement("i"));
+
+function progress(finish) {
+  fetch("/progress", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({session: SESSION, page: "lesson", screen: screen + 1, total: TOTAL,
+                          finished: !!finish})
+  }).then(r => r.json()).then(j => {
+    document.getElementById("state").textContent = j.ok ? "сохранено" : "ошибка";
+  }).catch(() => document.getElementById("state").textContent = "сервер не отвечает");
+}
+
+// ---------- экран 1: переменная ----------
+function s1() {
+  return {
+    title: "Переменная — это коробка с ярлыком",
+    html: `
+      <p>В коробку можно положить значение и написать на ярлыке имя. Потом по имени достаёшь
+      то, что лежит внутри.</p>
+      <div class="stage">
+        <div class="row">
+          <button class="btn" id="put5">положить в <code>age</code> число 5</button>
+          <button class="btn" id="put17">положить 17</button>
+          <button class="btn" id="add1">прибавить 1</button>
+        </div>
+        <div class="out" id="boxOut" style="margin-top:12px">в коробке: —</div>
+      </div>
+      <p>В коробке лежит <b>одно</b> значение: новое вытесняет старое, а не складывается с ним.</p>`,
+    mount() {
+      let v = null;
+      const out = document.getElementById("boxOut");
+      const draw = () => out.textContent = "в коробке: " + (v === null ? "—" : v);
+      document.getElementById("put5").onclick = () => { v = 5; draw(); };
+      document.getElementById("put17").onclick = () => { v = 17; draw(); };
+      document.getElementById("add1").onclick = () => {
+        if (v === null) { out.innerHTML = '<span class="bad">коробка пуста: прибавлять не к чему</span>'; return; }
+        v = v + 1; draw();
+      };
+    }
+  };
+}
+
+// ---------- экран 2: условие ----------
+function s2() {
+  return {
+    title: "Условие — развилка",
+    html: `
+      <p>Код спрашивает «да или нет» и идёт по одной из двух дорог. Внутри условия ничего
+      не «понимается» — только сравнение.</p>
+      <div class="stage">
+        <div class="row">
+          <span>возраст:</span><input type="number" id="ageIn" value="12">
+          <button class="btn primary" id="check">проверить</button>
+        </div>
+        <pre id="code">if age >= 18:
+    print("совершеннолетний")
+else:
+    print("нет")</pre>
+        <div class="out" id="ifOut"></div>
+      </div>
+      <p class="note">Поменяй число и нажми ещё раз: печатается ровно одна строка из двух.</p>`,
+    mount() {
+      const btn = document.getElementById("check");
+      const out = document.getElementById("ifOut");
+      btn.onclick = () => {
+        const v = Number(document.getElementById("ageIn").value);
+        out.textContent = v >= 18 ? 'совершеннолетний' : 'нет';
+      };
+    }
+  };
+}
+
+// ---------- экран 3: цикл ----------
+function s3() {
+  return {
+    title: "Цикл — конвейер",
+    html: `
+      <p>Цикл повторяет одно и то же, пока не кончится счёт. Три числа цикла: с чего начать,
+      сколько раз, что делать на каждом шаге.</p>
+      <div class="stage">
+        <div class="row"><span>повторить:</span><b id="nShow">3</b><span>раза</span></div>
+        <input type="range" id="nRange" min="1" max="6" value="3">
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="run">прогнать</button>
+          <span class="note">накапливаем сумму шагов в переменной <code>s</code></span>
+        </div>
+        <div class="out" id="loopOut" style="margin-top:12px"></div>
+      </div>
+      <p>Тело цикла выполняется ровно столько раз, сколько задано, — ни больше, ни меньше.</p>`,
+    mount() {
+      const r = document.getElementById("nRange");
+      const show = document.getElementById("nShow");
+      r.oninput = () => show.textContent = r.value;
+      document.getElementById("run").onclick = () => {
+        const n = Number(r.value);
+        let s = 0; const trace = [];
+        for (let i = 1; i <= n; i++) { s += i; trace.push(i + "→s=" + s); }
+        document.getElementById("loopOut").textContent =
+          trace.join("   ") + "   итог s=" + s;
+      };
+    }
+  };
+}
+
+// ---------- экран 4: проверка на собранной программе ----------
+function s4() {
+  return {
+    title: "Собираем все три кирпича вместе",
+    html: `
+      <p>Ниже маленькая программа: переменная, условие и цикл. Прочитай её и ответь, что
+      напечатается.</p>
+      <pre>total = 0
+for i in range(3):
+    if i % 2 == 0:
+        total = total + i
+print(total)</pre>
+      <div class="row">
+        <button class="btn" data-v="0">0</button>
+        <button class="btn" data-v="2">2</button>
+        <button class="btn" data-v="3">3</button>
+        <button class="btn" data-v="6">6</button>
+      </div>
+      <div class="out" id="pOut" style="margin-top:12px"></div>
+      <p class="note">range(3) даёт 0, 1, 2. Условие пропускает только чётные.</p>`,
+    mount() {
+      const out = document.getElementById("pOut");
+      document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => {
+        const v = b.dataset.v;
+        out.className = "out " + (v === "2" ? "" : "bad");
+        out.textContent = v === "2"
+          ? "верно: проходят 0 и 2, сумма 2. (1 не прошло: 1 % 2 = 1)"
+          : "нет: range(3) — это 0, 1, 2; условие оставляет чётные; итог 2";
+      });
+    }
+  };
+}
+
+// ---------- экран 5: своими словами + зачем ----------
+function s5() {
+  return {
+    title: "Своими словами — и что дальше",
+    html: `
+      <p>Одна фраза своими словами: чем переменная отличается от условия. Не пересказ —
+      что ты теперь скажешь иначе.</p>
+      <textarea id="phrase" placeholder="Напиши одну фразу для себя. Она не уходит на проверку и не оценивается."></textarea>
+      <div class="why" style="margin-top:16px">
+        <b>Что это и зачем.</b> Переменная хранит одно значение, условие выбирает ветку, цикл
+        повторяет шаг. Этого хватает, чтобы прочитать чужой код и увидеть, где он ломается:
+        «пустая переменная», «ветка не та», «цикл не кончился» — три самые частые поломки
+        в задачах любой сложности.
+      </div>
+      <p class="note" style="margin-top:14px">Дальше — шесть вопросов блока: там уже оценивается ответ,
+      и «не знаю» — нормальный вариант.</p>`
+  };
+}
+
+const SCREENS = [s1, s2, s3, s4, s5];
+
+function render() {
+  const s = SCREENS[screen]();
+  document.getElementById("content").innerHTML =
+    `<div class="card"><h2>${s.title}</h2>${s.html}</div>`;
+  if (s.mount) s.mount();
+  document.querySelectorAll("#steps i").forEach((el, i) => el.className = i <= screen ? "on" : "");
+  document.getElementById("hint").textContent = `Экран ${screen + 1} из ${TOTAL}`;
+  document.getElementById("prev").disabled = screen === 0;
+  const next = document.getElementById("next");
+  next.textContent = screen === TOTAL - 1 ? "к вопросам блока →" : "дальше →";
+  progress(false);
+}
+
+document.getElementById("prev").onclick = () => { if (screen > 0) { screen--; render(); } };
+document.getElementById("next").onclick = () => {
+  if (screen < TOTAL - 1) { screen++; render(); }
+  else if (!finished) { finished = true; progress(true); location.href = "/"; }
+};
+render();
+</script>
+</body>
+</html>

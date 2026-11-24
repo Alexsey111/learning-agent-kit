@@ -1,0 +1,70 @@
+{
+  "track": "experiment-zero-format",
+  "session": 1,
+  "status": "experiment_closed",
+  "current_topic": "docker_basics",
+  "phase": "zero",
+  "topics_order": [
+    "docker_basics",
+    "dockerfile_and_cache",
+    "compose",
+    "ci_and_deploy"
+  ],
+  "session_plan": [
+    "урок 0: пять экранов про образ, контейнер, порт, слои и завершение",
+    "игра: шесть раундов «что произойдёт»",
+    "блок 1: 6 вопросов по 2 балла, 25 минут, без подсказок"
+  ],
+  "track_note": "Проверочный прогон формата «с нуля» на чужой для ученика теме (Docker). Не учебный трек: блок не сдавался, ключ не применялся. Вывод — в EXPERIMENT_REPORT.txt.",
+  "review_queue": [],
+  "gaps": [
+    {
+      "id": "d1",
+      "cell": "образ и контейнер — одно и то же",
+      "state": "open",
+      "seen": 1
+    },
+    {
+      "id": "d2",
+      "cell": "порт снаружи и внутри",
+      "state": "open",
+      "seen": 1,
+      "note": "игра: раунд 2 (порт) — неверный выбор"
+    },
+    {
+      "id": "d3",
+      "cell": "слои и кэш сборки",
+      "state": "open",
+      "seen": 1
+    }
+  ],
+  "history": [
+    {
+      "session": 1,
+      "date": "2026-11-24",
+      "event": "нулевой старт: урок и игра выданы, блок 1 собран"
+    },
+    {
+      "session": 1,
+      "date": "2026-11-24",
+      "event": "урок пройден (5/5), игра 5 из 6 — промах в раунде 2 (порт), блок не сдан"
+    }
+  ],
+  "rules": {
+    "max_new_gaps_per_session": 2,
+    "review_offsets": [
+      3,
+      10
+    ],
+    "questions_per_block": "6-8, из них 2-3 возврата",
+    "max_razborov_per_session": 2,
+    "max_blocks_per_day": 1
+  },
+  "next_step": "эксперимент закрыт; формат поправлен (первый блок — 3 вопроса / 10 минут)",
+  "stack": {
+    "python": "3.12",
+    "docker": "не установлен (проверка на страницах)"
+  },
+  "intake_file": "INTAKE_filled.md",
+  "topic_plan_file": "topic_plan.md"
+}

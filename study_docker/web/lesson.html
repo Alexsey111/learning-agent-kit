@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker с нуля — урок 0</title>
+<style>
+  :root{--bg:#12151a;--card:#1a1f27;--card2:#212833;--line:#2c3541;--fg:#e6e9ee;--dim:#9aa5b4;
+        --acc:#5aa9ff;--ok:#3ecf8e;--warn:#e5b567;--bad:#ff8a8a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 "Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;padding:26px 20px 120px}
+  h1{font-size:23px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:14px;margin-bottom:18px}
+  .steps{display:flex;gap:6px;margin:0 0 22px}
+  .steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+  .steps i.on{background:var(--acc)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+  h2{font-size:20px;margin:0 0 10px}
+  p{color:#cfd6e0;margin:0 0 12px}
+  .stage{background:#0d1218;border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 14px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+       padding:8px 14px;font:inherit;font-size:15px;cursor:pointer}
+  .btn:hover{border-color:var(--acc);color:var(--acc)}
+  .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
+  .btn.primary:hover{filter:brightness(1.1);color:#08111c}
+  .btn:disabled{opacity:.45;cursor:default}
+  input[type=number]{width:96px;background:var(--card2);color:var(--fg);border:1px solid var(--line);
+       border-radius:8px;padding:7px 10px;font:inherit}
+  textarea{width:100%;min-height:78px;background:var(--card2);color:var(--fg);border:1px solid var(--line);
+       border-radius:9px;padding:10px;font:inherit}
+  pre,code{font-family:Consolas,monospace}
+  pre{background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:15px;
+      white-space:pre-wrap;margin:0 0 12px}
+  code{background:#0d1218;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:15px}
+  .out{font-family:Consolas,monospace;font-size:15px;color:var(--ok);min-height:24px;margin-top:10px}
+  .bad{color:var(--bad)}
+  .note{color:var(--dim);font-size:14px}
+  .why{border-left:3px solid var(--acc);background:#141a22;padding:10px 14px;border-radius:0 8px 8px 0;
+       color:#cfd6e0;font-size:15px;margin-top:14px}
+  .why b{color:var(--acc)}
+  .nav{display:flex;gap:10px;justify-content:space-between;margin-top:8px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:#0e1116ee;border-top:1px solid var(--line);
+       padding:10px 20px;display:flex;gap:14px;justify-content:center;color:var(--dim);font-size:14px}
+  .boxes{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  .box{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:#141a22;min-width:190px}
+  .box b{color:var(--acc)}
+  .df{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:0 0 12px}
+  .df div{display:flex;gap:10px;padding:6px 10px;font-family:Consolas,monospace;font-size:14px;
+          border-bottom:1px solid #1d232c;cursor:pointer}
+  .df div:last-child{border-bottom:0}
+  .df div:hover{background:#1a212b}
+  .df div.hit{background:#3a2020;color:#ffd0d0}
+  .df div.cached{background:#16301f;color:#c9f7de}
+  .df span.n{color:var(--dim);width:16px;flex:none}
+  .tag{font-size:12px;color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Урок 0 — Docker: зачем он, если «у меня работает»</h1>
+  <div class="sub">Пять экранов, 12–15 минут. Здесь всё можно нажимать: каждая ручка отвечает
+  по-настоящему, проверять на память не нужно.</div>
+  <div class="steps" id="steps"></div>
+  <div id="content"></div>
+  <div class="nav">
+    <button class="btn" id="prev">← назад</button>
+    <button class="btn primary" id="next">дальше →</button>
+  </div>
+</div>
+<div class="bar"><span id="hint">Экран 1 из 5</span><span id="state"></span></div>
+
+<script>
+const SESSION = Number("__SESSION__") || 0;
+const TOTAL = 5;
+let screen = 0, finished = false;
+
+const stepsEl = document.getElementById("steps");
+for (let i = 0; i < TOTAL; i++) stepsEl.appendChild(document.createElement("i"));
+
+function progress(finish) {
+  fetch("/progress", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({session: SESSION, page: "lesson", screen: screen + 1, total: TOTAL,
+                          finished: !!finish})
+  }).then(r => r.json()).then(j => {
+    document.getElementById("state").textContent = j.ok ? "сохранено" : "ошибка";
+  }).catch(() => document.getElementById("state").textContent = "сервер молчит");
+}
+
+// ---------- 1. почему у одного работает, у другого нет ----------
+function s1() {
+  return {
+    title: "Проблема, из-за которой Docker вообще придумали",
+    html: `
+      <p>Один и тот же файл запускается на твоём ноутбуке и падает на сервере. Дело не в коде,
+      а в том, что вокруг кода: версия Python, набор пакетов, переменные окружения.</p>
+      <div class="stage">
+        <pre>def greet(name: str) -> str:
+    return name.strip().title()
+
+users: list[str] = ["аня", " боря "]
+print([greet(u) for u in users])</pre>
+        <div class="row">
+          <button class="btn" data-py="3.12">запустить на моём ноутбуке (3.12)</button>
+          <button class="btn" data-py="3.8">на сервере (3.8)</button>
+          <button class="btn" data-py="3.10">у коллеги (3.10)</button>
+        </div>
+        <div class="out" id="pyOut"></div>
+      </div>
+      <p>Код один и тот же, а результат разный: <code>list[str]</code> понимают только Python 3.9
+      и новее. На 3.8 падает ещё до первой строки работы.</p>
+      <div class="why"><b>Что это и зачем.</b> Docker упаковывает не файл с кодом, а код
+      <i>вместе с окружением</i>: конкретная версия Python, конкретные пакеты, конкретные
+      настройки. На сервере распаковывается ровно то же самое, что у тебя, поэтому «у меня
+      работает» перестаёт быть отдельным случаем.</div>`,
+    mount() {
+      const out = document.getElementById("pyOut");
+      document.querySelectorAll("[data-py]").forEach(b => b.onclick = () => {
+        const v = b.dataset.py;
+        const ok = Number(v) >= 9;
+        const py38 = v === "3.8";
+        out.className = "out" + (py38 ? " bad" : "");
+        out.textContent = py38
+          ? "TypeError: 'type' object is not subscriptable  (строка 5)"
+          : "['Аня', 'Боря']   — работает";
+      });
+    }
+  };
+}
+
+// ---------- 2. образ и контейнер ----------
+function s2() {
+  return {
+    title: "Образ — чертёж, контейнер — запущенная копия",
+    html: `
+      <p>Образ — это застывший набор слоёв: код плюс окружение. Запустить образ можно
+      один раз, три и двадцать — каждый запуск даёт отдельный контейнер.</p>
+      <div class="stage">
+        <div class="row">
+          <button class="btn primary" id="build">docker build -t app .</button>
+          <button class="btn" id="run">docker run app</button>
+          <button class="btn" id="stop">остановить все</button>
+          <button class="btn" id="rm">docker rm -f app</button>
+        </div>
+        <div class="boxes" style="margin-top:14px">
+          <div class="box" id="imgBox"><b>образ</b><br><span class="note">ещё не собран</span></div>
+          <div class="box" id="ctBox"><b>контейнеры</b><br><span class="note">нет</span></div>
+        </div>
+        <div class="out" id="lifeOut"></div>
+      </div>
+      <p><code>docker rm</code> снимает контейнер, <code>docker rmi</code> — образ. Перепутать их
+      легко, потому что слова похожи.</p>
+      <div class="why"><b>Зачем это разделение.</b> Образ собирается один раз и переиспользуется;
+      контейнер — расходник: его можно снести и поднять заново за секунду, потому что образ
+      остался. Данные, которые надо сохранить, поэтому и не держат в контейнере: он не для этого.</div>`,
+    mount() {
+      let img = false, alive = 0;
+      const imgBox = document.getElementById("imgBox"), ctBox = document.getElementById("ctBox");
+      const out = document.getElementById("lifeOut");
+      const draw = () => {
+        imgBox.innerHTML = "<b>образ</b><br>" + (img
+          ? '<span style="color:var(--ok)">app:latest · 148 МБ</span><br><span class="note">слои: FROM, WORKDIR, COPY, RUN, CMD</span>'
+          : '<span class="note">ещё не собран</span>');
+        ctBox.innerHTML = "<b>контейнеры</b><br>" + (alive
+          ? `<span style="color:var(--ok)">работают: ${alive}</span><br><span class="note">у каждого свой записываемый слой</span>`
+          : '<span class="note">нет</span>');
+      };
+      document.getElementById("build").onclick = () => { img = true; out.textContent = "образ собран: 5 слоёв"; draw(); };
+      document.getElementById("run").onclick = () => {
+        if (!img) { out.className = "out bad"; out.textContent = "Unable to find image 'app' locally"; return; }
+        alive++; out.className = "out"; out.textContent = `контейнеров работает: ${alive}`; draw();
+      };
+      document.getElementById("stop").onclick = () => {
+        if (!alive) { out.className = "out"; out.textContent = "останавливать нечего"; return; }
+        out.className = "out"; out.textContent = `остановлено: ${alive}`; alive = 0; draw();
+      };
+      document.getElementById("rm").onclick = () => {
+        if (!img) { out.className = "out bad"; out.textContent = "No such container: app"; return; }
+        alive = 0;
+        out.className = "out";
+        out.textContent = "контейнер снят" + (alive === 0 ? " · образ app:latest на месте" : "");
+        draw();
+      };
+      draw();
+    }
+  };
+}
+
+// ---------- 3. порт ----------
+function s3() {
+  return {
+    title: "Порт: -p снаружи:внутри",
+    html: `
+      <p>Внутри контейнера своя сеть. Порт приложения наружу не виден, пока его не пробросят.
+      Левое число — порт на твоём компьютере, правое — порт внутри.</p>
+      <div class="stage">
+        <div class="row">
+          <span>-p</span>
+          <input type="number" id="hp" value="8000">
+          <span>:</span>
+          <input type="number" id="cp" value="5000">
+          <button class="btn primary" id="apply">применить</button>
+        </div>
+        <pre id="cmd">docker run -p 8000:5000 app</pre>
+        <div class="row">
+          <button class="btn" id="openHost">открыть localhost:<span id="hl">8000</span></button>
+          <button class="btn" id="openCont">открыть localhost:<span id="cl">5000</span></button>
+        </div>
+        <div class="out" id="portOut"></div>
+      </div>
+      <div class="why"><b>Как читать.</b> Первое число — дверь на хосте, второе — дверь внутри.
+      Если приложение слушает 5000, а <code>-p</code> забыли, приложение живо, но снаружи
+      к нему нет входа: браузер получит отказ соединения.</div>`,
+    mount() {
+      const hp = document.getElementById("hp"), cp = document.getElementById("cp");
+      const out = document.getElementById("portOut");
+      const sync = () => {
+        document.getElementById("cmd").textContent = `docker run -p ${hp.value}:${cp.value} app`;
+        document.getElementById("hl").textContent = hp.value;
+        document.getElementById("cl").textContent = cp.value;
+      };
+      hp.oninput = cp.oninput = sync;
+      document.getElementById("apply").onclick = () => { sync(); out.className = "out"; out.textContent = "команда собрана — проверь оба адреса"; };
+      document.getElementById("openHost").onclick = () => {
+        const h = hp.value, c = cp.value;
+        out.className = "out";
+        out.textContent = `localhost:${h} → 200 OK, приложение ответило (проброс ${h}→${c})`;
+      };
+      document.getElementById("openCont").onclick = () => {
+        const h = hp.value, c = cp.value;
+        if (h === c) { out.className = "out"; out.textContent = `localhost:${c} → 200 OK (порты совпали случайно)`; }
+        else {
+          out.className = "out bad";
+          out.textContent = `localhost:${c} → отказ соединения: ${c} — это порт внутри контейнера, наружу проброшен ${h}`;
+        }
+      };
+      sync();
+    }
+  };
+}
+
+// ---------- 4. слои и кэш ----------
+function s4() {
+  return {
+    title: "Слои и кэш: почему сборка занимает три минуты",
+    html: `
+      <p>Каждая строка Dockerfile — слой. Docker кэширует слои и пересобирает с той строки,
+      которая изменилась, до конца файла.</p>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn" id="mode">показать правильный порядок</button>
+        <span class="note" id="modeNote">сейчас: код копируется до установки пакетов</span>
+      </div>
+      <div class="df" id="df"></div>
+      <p class="note">Нажми на строку, которую «правишь», — увидишь, что пересобирается.</p>
+      <div class="out" id="layerOut"></div>
+      <div class="why"><b>Правило.</b> Что меняется чаще — идёт ниже. Код меняется каждый день,
+      <code>requirements.txt</code> — раз в месяц, поэтому пакеты ставятся раньше, чем копируется
+      код, и установка берётся из кэша.</div>`,
+    mount() {
+      const BAD = [
+        ["FROM python:3.12-slim", "база"],
+        ["WORKDIR /app", "рабочая папка"],
+        ["COPY . .", "код целиком"],
+        ["RUN pip install -r requirements.txt", "пакеты"],
+        ['CMD ["python", "app.py"]', "запуск"]
+      ];
+      const GOOD = [
+        ["FROM python:3.12-slim", "база"],
+        ["WORKDIR /app", "рабочая папка"],
+        ["COPY requirements.txt .", "только список пакетов"],
+        ["RUN pip install -r requirements.txt", "пакеты"],
+        ["COPY . .", "код целиком"],
+        ['CMD ["python", "app.py"]', "запуск"]
+      ];
+      let good = false;
+      const df = document.getElementById("df");
+      const out = document.getElementById("layerOut");
+
+      function draw(changed) {
+        const lines = good ? GOOD : BAD;
+        df.innerHTML = "";
+        lines.forEach(([text, tag], i) => {
+          const d = document.createElement("div");
+          d.innerHTML = `<span class="n">${i + 1}</span><span>${text.replace(/</g, "&lt;")}</span>
+                         <span class="tag">${tag}</span>`;
+          if (changed !== null && changed !== undefined) {
+            if (i >= changed) d.className = "hit"; else d.className = "cached";
+          }
+          d.onclick = () => report(i, lines);
+          df.appendChild(d);
+        });
+      }
+
+      function report(i, lines) {
+        const pipIdx = lines.findIndex(l => l[0].startsWith("RUN pip"));
+        const rebuild = lines.map((l, k) => k >= i ? l[0] : null).filter(Boolean);
+        const pip = rebuild.some(t => t.startsWith("RUN pip"));
+        draw(i);
+        out.className = "out" + (pip ? " bad" : "");
+        out.textContent = pip
+          ? `пересобираются строки ${i + 1}–${lines.length}: pip ставит пакеты заново ≈ 3 мин`
+          : `пересобираются строки ${i + 1}–${lines.length}: слой пакетов (${pipIdx + 1}) из кэша, ≈ 2 с`;
+      }
+
+      document.getElementById("mode").onclick = () => {
+        good = !good;
+        document.getElementById("modeNote").textContent = good
+          ? "сейчас: правильный порядок — пакеты раньше кода"
+          : "сейчас: код копируется до установки пакетов";
+        draw(null);
+        out.textContent = good
+          ? "теперь нажми на строку с кодом (5) — pip останется в кэше"
+          : "теперь нажми на строку с кодом (3) — pip переустановится";
+        out.className = "out";
+      };
+      draw(null);
+    }
+  };
+}
+
+// ---------- 5. завершился, сигналы, данные ----------
+function s5() {
+  return {
+    title: "Три поломки, которые случаются в первый же день",
+    html: `
+      <p><b>1. Контейнер сразу завершился.</b> Контейнер живёт, пока живёт его главный процесс.
+      Упал или закончил — контейнер остановлен.</p>
+      <pre>docker ps        # пусто
+docker ps -a     # вот он, статус Exited (1)
+docker logs app1 # и вот причина: Traceback</pre>
+
+      <p style="margin-top:16px"><b>2. Ctrl+C не останавливает сервер.</b> Переключи форму записи CMD:</p>
+      <div class="stage">
+        <div class="row">
+          <button class="btn" id="form">CMD python app.py</button>
+          <button class="btn primary" id="form2">CMD ["python", "app.py"]</button>
+        </div>
+        <div class="out" id="sigOut"></div>
+      </div>
+
+      <p style="margin-top:16px"><b>3. Данные пропали после docker rm.</b> Файл, созданный внутри,
+      лежит в записываемом слое контейнера и умирает вместе с ним:</p>
+      <div class="stage">
+        <div class="row">
+          <button class="btn" id="volOff">docker run app</button>
+          <button class="btn primary" id="volOn">docker run -v C:/work/data:/app/data app</button>
+          <button class="btn" id="volRm">docker rm -f app1</button>
+        </div>
+        <div class="out" id="volOut">база: 42 записи</div>
+      </div>
+
+      <div class="why"><b>Итог одной фразой.</b> Контейнер — это процесс с упакованным окружением:
+      жив, пока живёт процесс; всё, что должно пережить его смерть, выносится на хост томом.
+      Отсюда три проверки в любой поломке: <code>docker ps -a</code> (жив ли),
+      <code>docker logs</code> (почему упал), проброс порта и том (доступен ли снаружи
+      и целы ли данные).</div>
+      <p style="margin-top:14px">Напиши одну фразу своими словами: чем контейнер отличается
+      от образа. Она не уходит на проверку.</p>
+      <textarea id="phrase" placeholder="Моими словами: ..."></textarea>`
+    ,
+    mount() {
+      const sig = document.getElementById("sigOut");
+      document.getElementById("form").onclick = () => {
+        sig.className = "out bad";
+        sig.textContent = "PID 1 = /bin/sh → Ctrl+C получает оболочка, python остаётся жить, контейнер висит";
+      };
+      document.getElementById("form2").onclick = () => {
+        sig.className = "out";
+        sig.textContent = "PID 1 = python → сигнал доходит до приложения, остановка штатная";
+      };
+      let volume = false, db = 42;
+      const volOut = document.getElementById("volOut");
+      document.getElementById("volOn").onclick = () => {
+        volume = true; volOut.className = "out";
+        volOut.textContent = "каталог C:/work/data подключён в /app/data · база на хосте";
+      };
+      document.getElementById("volOff").onclick = () => {
+        volume = false; volOut.className = "out";
+        volOut.textContent = "база внутри контейнера, на хосте её нет";
+      };
+      document.getElementById("volRm").onclick = () => {
+        if (volume) { volOut.className = "out"; volOut.textContent = `контейнер снят · на хосте осталось ${db} записи`; }
+        else { db = 0; volOut.className = "out bad"; volOut.textContent = "контейнер снят вместе с записываемым слоем · база: 0 записей"; }
+      };
+    }
+  };
+}
+
+const SCREENS = [s1, s2, s3, s4, s5];
+
+function render() {
+  const s = SCREENS[screen]();
+  document.getElementById("content").innerHTML = `<div class="card"><h2>${s.title}</h2>${s.html}</div>`;
+  if (s.mount) s.mount();
+  document.querySelectorAll("#steps i").forEach((el, i) => el.className = i <= screen ? "on" : "");
+  document.getElementById("hint").textContent = `Экран ${screen + 1} из ${TOTAL}`;
+  document.getElementById("prev").disabled = screen === 0;
+  document.getElementById("next").textContent =
+    screen === TOTAL - 1 ? "к игре →" : "дальше →";
+  progress(false);
+}
+
+document.getElementById("prev").onclick = () => { if (screen > 0) { screen--; render(); } };
+document.getElementById("next").onclick = () => {
+  if (screen < TOTAL - 1) { screen++; render(); return; }
+  if (!finished) { finished = true; progress(true); }
+  location.href = "/game.html";
+};
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker — игра: что произойдёт</title>
+<style>
+  :root{--bg:#12151a;--card:#1a1f27;--card2:#212833;--line:#2c3541;--fg:#e6e9ee;--dim:#9aa5b4;
+        --acc:#5aa9ff;--ok:#3ecf8e;--bad:#ff8a8a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.6 "Segoe UI",Roboto,Arial,sans-serif}
+  .wrap{max-width:820px;margin:0 auto;padding:26px 20px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:14px;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:0 0 16px}
+  pre{background:#0d1218;border:1px solid var(--line);border-radius:8px;padding:12px;font-family:Consolas,monospace;
+      font-size:15px;white-space:pre-wrap;margin:0 0 14px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{text-align:left;background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:9px;
+       padding:10px 14px;font:inherit;cursor:pointer}
+  .opt:hover{border-color:var(--acc)}
+  .opt.right{border-color:var(--ok);background:#16301f}
+  .opt.wrong{border-color:var(--bad);background:#2e1a1a}
+  .opt:disabled{cursor:default}
+  .fb{margin-top:12px;font-size:15px;color:#cfd6e0}
+  .fb b{color:var(--acc)}
+  .score{color:var(--dim);font-size:14px;margin-bottom:10px}
+  .score b{color:var(--fg)}
+  .btn{background:var(--card2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+       padding:8px 14px;font:inherit;cursor:pointer}
+  .btn.primary{background:var(--acc);color:#08111c;border-color:var(--acc);font-weight:700}
+  .done{color:var(--ok);font-size:19px;font-weight:700;margin:0 0 10px}
+  .note{color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Игра — предскажи, что сделает Docker</h1>
+  <div class="sub">Шесть раундов по одной команде. Балл в блок не идёт: игра показывает, где догадка
+  расходится с поведением Docker. Переиграть можно сколько угодно.</div>
+  <div class="card">
+    <div class="score">Раунд <b id="rn">1</b> из <b>6</b> · верно <b id="okc">0</b> из <b id="tot">0</b></div>
+    <div id="body"></div>
+  </div>
+</div>
+
+<script>
+const SESSION = Number("__SESSION__") || 0;
+
+const ROUNDS = [
+  { code: "docker build -t app .",
+    q: "Что означает точка в конце команды?",
+    opts: ["имя образа", "контекст сборки — текущая папка, откуда берутся файлы для COPY",
+           "версию контейнера, которую надо запустить"],
+    right: 1,
+    why: "Точка — это папка, всё содержимое которой уходит в сборку. Без неё Docker не найдёт ни Dockerfile, ни файлы для COPY." },
+  { code: "docker run app\n# В Dockerfile: EXPOSE 5000\n# в браузере: localhost:5000 → отказ",
+    q: "Что нужно сделать?",
+    opts: ["добавить проброс: docker run -p 5000:5000 app", "переустановить Docker",
+           "открыть localhost:8000 — Docker сам сдвигает порт"],
+    right: 0,
+    why: "EXPOSE внутри контейнера ничего не публикует наружу, это лишь подпись. Дверь с хоста открывает только -p." },
+  { code: "docker ps\n# пусто, хотя контейнер точно запускался минуту назад",
+    q: "Какая команда покажет, что с ним стало?",
+    opts: ["docker ps -a", "docker images", "docker pull app"],
+    right: 0,
+    why: "docker ps показывает только живые. Флаг -a — все, включая остановленные, со статусом Exited и кодом возврата." },
+  { code: "# два Dockerfile, оба рабочие\nA: COPY . .  →  RUN pip install -r requirements.txt\nB: COPY requirements.txt .  →  RUN pip install -r requirements.txt  →  COPY . .",
+    q: "После правки одной строки кода какой соберётся быстрее и почему?",
+    opts: ["A: меньше строк — быстрее", "B: слой с pip не менялся и берётся из кэша",
+           "одинаково: Docker кэширует всё целиком"],
+    right: 1,
+    why: "Кэш сбрасывается с первой изменённой строки вниз. В A код копируется до pip, поэтому каждая правка кода переустанавливает пакеты." },
+  { code: "# контейнер работает, но приложение не отвечает\ndocker ps\n# CONTAINER ID  app1   Up 2 minutes",
+    q: "Где искать traceback?",
+    opts: ["docker logs app1", "docker exec -it app1 sh", "docker inspect app1"],
+    right: 0,
+    why: "logs отдаёт то, что процесс напечатал (stdout/stderr). exec заходит внутрь живой оболочкой — это уже следующий шаг, если логи пусты." },
+  { code: "docker rm -f app1\n# образ был собран как app:latest",
+    q: "Что стало с образом?",
+    opts: ["удалён вместе с контейнером", "остался: из него можно поднять новый контейнер",
+           "остался, но с базой данных внутри"],
+    right: 1,
+    why: "rm снимает контейнер и его записываемый слой; образ удаляет только rmi. Данные контейнера при этом теряются — для них нужен том." }
+];
+
+let cur = 0, ok = 0, answered = 0;
+const body = document.getElementById("body");
+
+function progress(finish) {
+  fetch("/progress", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({session: SESSION, page: "game", screen: cur + 1, total: ROUNDS.length,
+                          score: ok, answered, finished: !!finish})
+  }).catch(() => {});
+}
+
+function draw() {
+  document.getElementById("rn").textContent = Math.min(cur + 1, ROUNDS.length);
+  document.getElementById("okc").textContent = ok;
+  document.getElementById("tot").textContent = answered;
+  if (cur >= ROUNDS.length) return finish();
+  const r = ROUNDS[cur];
+  body.innerHTML = `<pre></pre><p></p><div class="opts"></div><div class="fb"></div>`;
+  body.querySelector("pre").textContent = r.code;
+  body.querySelector("p").textContent = r.q;
+  const opts = body.querySelector(".opts");
+  const fb = body.querySelector(".fb");
+  r.opts.forEach((label, idx) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.textContent = label;
+    b.onclick = () => {
+      answered++;
+      const right = idx === r.right;
+      if (right) ok++;
+      opts.querySelectorAll(".opt").forEach((el, i) => {
+        el.disabled = true;
+        if (i === r.right) el.classList.add("right");
+        else if (i === idx) el.classList.add("wrong");
+      });
+      fb.innerHTML = `<b>${right ? "верно" : "нет"}</b>. ${r.why}`;
+      const next = document.createElement("button");
+      next.className = "btn primary";
+      next.style.marginTop = "12px";
+      next.textContent = cur === ROUNDS.length - 1 ? "итог" : "дальше →";
+      next.onclick = () => { cur++; draw(); };
+      fb.appendChild(next);
+      document.getElementById("okc").textContent = ok;
+      document.getElementById("tot").textContent = answered;
+      progress(false);
+    };
+    opts.appendChild(b);
+  });
+}
+
+function finish() {
+  body.innerHTML = `<p class="done">Верно ${ok} из ${ROUNDS.length}.</p>
+    <p class="note">Игра ничего не оценивает и не двигает очередь повторов. Дальше — блок из шести
+    вопросов: там ответ письменный, и балл уже настоящий.</p>
+    <p class="note">Правила, на которых спотыкаются чаще всего: порт открывает только -p,
+    контейнер живёт, пока живёт процесс, кэш сбрасывается с изменённой строки вниз.</p>`;
+  const go = document.createElement("button");
+  go.className = "btn primary";
+  go.textContent = "к вопросам блока →";
+  go.onclick = () => { location.href = "/"; };
+  body.appendChild(go);
+  progress(true);
+}
+
+draw();
+</script>
+</body>
+</html>
