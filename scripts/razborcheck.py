@@ -177,6 +177,8 @@ class SkipControl(Exception):
 
 def mutate(tree: Path, kind: str) -> None:
     raz = tree / "gaps" / "block_1_razbor.txt"
+    if not raz.is_file() and kind != "нет разбора":
+        raise SkipControl("инстанс без разбора: контроль неприменим")
     st_p = tree / "state.json"
     st = json.loads(read(st_p)) if st_p.is_file() else {}
     if kind == "нет разбора":
@@ -256,6 +258,18 @@ def main() -> int:
     if not study.is_dir():
         print(f"нет папки {study}")
         return 2
+    has_answers = bool((study / "answers").is_dir() and list((study / "answers").glob("block_*_answers.txt")))
+    state_p = study / "state.json"
+    has_razbor = False
+    if state_p.is_file():
+        try:
+            has_razbor = bool(json.loads(read(state_p)).get("razbor"))
+        except Exception:  # noqa: BLE001
+            has_razbor = False
+    if not has_answers and not has_razbor:
+        print(f"\n=== разбор: {study.name} ===")
+        print("  n/a  блоков ещё не сдано — разбирать нечего, гейт неприменим (exit 0)")
+        return 0
     try:
         run_checks(study)
     except Exception as exc:  # noqa: BLE001

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Игра — предскажи, что напечатает</title>
+<style>
+  :root { --bg:#0e1116; --fg:#e8edf4; --dim:#9aa7b8; --line:#24303f; --acc:#5aa9ff; --ok:#61d095; --bad:#ff7a7a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .bar { position:sticky; top:0; display:flex; justify-content:space-between; gap:12px; padding:10px 16px;
+         border-bottom:1px solid var(--line); background:var(--bg); }
+  main { max-width:720px; margin:0 auto; padding:20px 16px 120px; }
+  h1 { font-size:22px; margin:4px 0 14px; }
+  pre { background:#141a22; border:1px solid var(--line); border-radius:10px; padding:12px 14px; overflow-x:auto;
+        font-family:ui-monospace,Consolas,monospace; font-size:14px; }
+  button { font:inherit; min-height:44px; padding:10px 14px; border-radius:10px; border:1px solid var(--line);
+           background:#1a2330; color:var(--fg); cursor:pointer; width:100%; text-align:left; margin:8px 0; }
+  button:hover { border-color:var(--acc); }
+  button:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+  button.ok { border-color:var(--ok); }
+  button.bad { border-color:var(--bad); }
+  .fb { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:12px 0; background:#131923; }
+  .fb b.ok { color:var(--ok); } .fb b.bad { color:var(--bad); }
+  .dim { color:var(--dim); }
+  nav { position:fixed; bottom:0; left:0; right:0; padding:12px 16px; background:#0e1116f2; border-top:1px solid var(--line);
+        display:flex; justify-content:flex-end; }
+</style>
+</head>
+<body>
+<div class="bar"><b>Игра: предскажи вывод</b><b class="dim" id="hint">раунд 1 из 6</b></div>
+<main id="content"></main>
+<nav><button id="next" style="width:auto; display:none">дальше →</button></nav>
+<script>
+const R = [
+  { code:`extends Node2D\n\nfunc _ready() -> void:\n    print("сцена собрана")`,
+    q:"Что появится в консоли при запуске сцены?",
+    opts:["сцена собрана", "ничего", "ошибка: нет функции main"], ok:0,
+    why:"_ready вызывается автоматически при старте сцены — это точка входа узла, а не main, как в обычных программах." },
+  { code:`Level (Node2D)\n└── Door (Area2D, скрипт door.gd)\n    └── Handle (Sprite2D, скрипт handle.gd)`,
+    q:"Чей _ready сработает первым?",
+    opts:["Door", "Handle", "Level"], ok:1,
+    why:"Порядок снизу вверх: сначала самый вложенный узел (Handle), потом его родитель Door." },
+  { code:`var health = 15\nvar speed = 300\nif health < 20:\n    speed = 150\nprint(speed)`,
+    q:"Что напечатается?",
+    opts:["300", "150", "ошибка: speed не определён"], ok:1,
+    why:"Условие 15 < 20 истинно, значит переменная перезаписана на 150. Ошибки нет: speed объявлена выше." },
+  { code:`signal opened\n\nfunc _ready() -> void:\n    opened.connect(func(): print("поймал"))\n    print("подключил")`,
+    q:"Что напечатает сцена сразу после запуска?",
+    opts:["поймал", "подключил", "ничего"], ok:1,
+    why:"Сигнал испускают отдельно (opened.emit()), поэтому в _ready только подключение — печатается «подключил»." },
+  { code:`extends CharacterBody2D\n\nfunc _physics_process(delta):\n    velocity.x = 100 * delta\n    move_and_slide()`,
+    q:"Что не так с этой строкой движения?",
+    opts:["скорость умножают на delta — за секунду персонаж почти не сдвинется",
+          "нужно velocity.y, а не x",
+          "move_and_slide нельзя вызывать каждый кадр"], ok:0,
+    why:"Скорость — это единицы в секунду, а delta — доля секунды. Умножать скорость на delta нужно не здесь, а при позиции; так персонаж еле ползёт." },
+  { code:`var met_npc = false\n\nfunc talk() -> void:\n    if met_npc:\n        print("Привет ещё раз!")\n    else:\n        print("Привет, путник.")\n        met_npc = true`,
+    q:"Что скажет NPC, если игрок поговорит два раза подряд?",
+    opts:["два раза «Привет, путник.»", "сначала «Привет, путник.», потом «Привет ещё раз!»", "ошибка: met_npc нельзя менять в функции"], ok:1,
+    why:"Флаг меняется в конце первого разговора, поэтому второй заход идёт по другой ветке. Это и есть «выбор с последствием»." }
+];
+let i = 0, answered = false;
+
+function render() {
+  answered = false;
+  const r = R[i];
+  document.getElementById('hint').textContent = `раунд ${i + 1} из ${R.length}`;
+  document.getElementById('content').innerHTML =
+    `<h1>${r.q}</h1><pre>${r.code.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</pre>` +
+    `<div id="opts">${r.opts.map((o, k) => `<button data-k="${k}">${o}</button>`).join('')}</div>` +
+    `<div id="fb"></div>`;
+  document.querySelectorAll('#opts button').forEach(b => b.onclick = () => pick(Number(b.dataset.k), b));
+  document.getElementById('next').style.display = 'none';
+}
+
+function pick(k, btn) {
+  if (answered) return;
+  answered = true;
+  const r = R[i];
+  document.querySelectorAll('#opts button').forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === r.ok) b.classList.add('ok');
+    if (idx === k && k !== r.ok) b.classList.add('bad');
+  });
+  document.getElementById('fb').innerHTML =
+    `<div class="fb"><b class="${k === r.ok ? 'ok' : 'bad'}">${k === r.ok ? 'верно' : 'мимо'}</b> — ${r.why}</div>`;
+  const nx = document.getElementById('next');
+  nx.style.display = 'block';
+  nx.textContent = i === R.length - 1 ? 'к блоку →' : 'дальше →';
+}
+
+document.getElementById('next').onclick = async () => {
+  if (i < R.length - 1) { i++; render(); return; }
+  try {
+    const res = await fetch('/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: 'game', total: R.length, finished: true }) });
+    if (!res.ok) throw new Error('bad');
+    location.href = '/';
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      `<h1>Сервер тренажёра закрыт</h1><p>Игра пройдена, но перейти к блоку некуда: сервер не отвечает.</p>
+       <p class="dim">Запусти start.cmd заново и обнови вкладку.</p>`;
+  }
+};
+render();
+</script>
+</body>
+</html>

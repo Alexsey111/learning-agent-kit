@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Урок 0 — сцена, узел, скрипт (Godot)</title>
+<style>
+  :root { --bg:#0e1116; --fg:#e8edf4; --dim:#9aa7b8; --line:#24303f; --acc:#5aa9ff; --ok:#61d095; --bad:#ff7a7a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .bar { position:sticky; top:0; display:flex; gap:12px; align-items:center; justify-content:space-between;
+         padding:10px 16px; background:var(--bg); border-bottom:1px solid var(--line); z-index:5; }
+  .bar b { font-size:14px; letter-spacing:.02em; }
+  .steps { display:flex; gap:5px; }
+  .steps i { width:22px; height:5px; border-radius:3px; background:var(--line); display:block; }
+  .steps i.on { background:var(--acc); }
+  main { max-width:760px; margin:0 auto; padding:22px 16px 120px; }
+  h1 { font-size:26px; line-height:1.25; margin:6px 0 14px; }
+  h2 { font-size:19px; margin:22px 0 8px; }
+  p { margin:0 0 12px; }
+  .dim { color:var(--dim); }
+  code, pre { font-family:ui-monospace,Consolas,monospace; font-size:14px; }
+  pre { background:#141a22; border:1px solid var(--line); border-radius:10px; padding:12px 14px; overflow-x:auto; }
+  button { font:inherit; min-height:44px; padding:10px 16px; border-radius:10px; border:1px solid var(--line);
+           background:#1a2330; color:var(--fg); cursor:pointer; }
+  button:hover { border-color:var(--acc); }
+  button:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 14px; }
+  .out { background:#141a22; border:1px solid var(--line); border-left:3px solid var(--acc); border-radius:8px;
+         padding:12px 14px; margin:10px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .tree { font-family:ui-monospace,Consolas,monospace; line-height:1.7; }
+  .tree span { color:var(--dim); }
+  .note { border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#131923; }
+  input[type=number] { font:inherit; width:110px; min-height:44px; padding:8px 10px; border-radius:10px;
+                       border:1px solid var(--line); background:#141a22; color:var(--fg); }
+  nav { position:fixed; bottom:0; left:0; right:0; display:flex; justify-content:space-between; gap:10px;
+        padding:12px 16px; background:#0e1116f2; border-top:1px solid var(--line); }
+  nav button { min-width:120px; }
+  .gone { border-color:#ff7a7a; }
+</style>
+</head>
+<body>
+<div class="bar"><b>Урок 0 — сцена, узел, скрипт</b><div class="steps" id="steps"></div><b id="hint" class="dim">Экран 1 из 5</b></div>
+<main id="content"></main>
+<nav><button id="prev">← назад</button><button id="next">далее →</button></nav>
+
+<script>
+const TOTAL = 5;
+let cur = 0;
+
+const S = [
+  // 1
+  `<h1>Сцена — это дерево, узел — это его лист</h1>
+   <p>В Godot игра собирается из <b>узлов</b>. Узел — маленькая деталь с одной работой: нарисовать картинку,
+   сдвинуть персонажа, поймать нажатие. Узлы вкладываются друг в друга, и получается <b>сцена</b>.
+   Сцена — тоже узел: её можно вложить в другую сцену целиком.</p>
+   <p>Не путай: <b>сцена</b> — это всё дерево, <b>узел</b> — один прямоугольник в нём. Ветка тоже узел
+   и тоже может быть сценой, если её сохранили отдельным файлом.</p>
+   <div class="row"><button id="b1">собрать сцену</button></div>
+   <div class="out" id="o1">нажми «собрать сцену» — увидишь дерево</div>
+   <div class="note dim">Проверь себя: сколько в дереве узлов и какой из них корень? Корень — тот, у которого нет отступа.</div>`,
+  // 2
+  `<h1>Скрипт вешают на узел, а не на игру</h1>
+   <p>Скрипт — это код, который оживляет один конкретный узел. Повесил скрипт на Игрока — он управляет
+   Игроком, и ничего не знает про Дверь. Так каждый узел отвечает за своё, и это главное правило,
+   из-за которого проект не превращается в кашу.</p>
+   <p><code>extends CharacterBody2D</code> — «я узел этого типа». <code>func _ready()</code> — функция,
+   которую Godot вызовет сам, когда сцена запустится.</p>
+   <div class="row"><button id="b2">повесить скрипт на Игрока</button></div>
+   <div class="out" id="o2">нажми кнопку — увидишь скрипт и что он напечатает</div>
+   <div class="note dim">Проверь себя: почему <code>print</code> внутри <code>_ready</code> сработает без нажатия кнопки?</div>`,
+  // 3
+  `<h1>Порядок запуска: дети раньше родителя</h1>
+   <p>Когда сцена стартует, Godot будит узлы <b>снизу вверх</b>: сначала самые вложенные, потом их родитель.
+   Поэтому Дверь внутри Комнаты напечатает своё раньше, чем Мир — своё.</p>
+   <p>Это не мелочь: если в <code>_ready</code> родителя ты ищешь ребёнка, он уже готов. А если наоборот —
+   ребёнок ищет родителя — тоже готов, потому что родитель существует, хоть его <code>_ready</code> ещё не выполнился.</p>
+   <div class="row"><button id="b3">запустить сцену</button></div>
+   <div class="out" id="o3">нажми «запустить» — увидишь порядок строк в консоли</div>
+   <div class="note dim">Проверь себя: что напечатается первым — Дверь или Мир? Почему?</div>`,
+  // 4
+  `<h1>Переменная и условие: игра начинает решать</h1>
+   <p><b>Переменная</b> — именованная ячейка: <code>var health = 100</code>. <b>Условие</b> — проверка
+   и развилка: <code>if health &lt; 20:</code>. Без условий нет ни выбора в диалоге, ни реакции на урон.</p>
+   <p>Сюжет с выбором — это те же условия, только про флаги: <code>if met_npc:</code> — NPC скажет одно,
+   иначе другое.</p>
+   <div class="row">
+     <label>здоровье: <input id="hp" type="number" value="15" min="0" max="100"></label>
+     <button id="b4">посчитать скорость</button>
+   </div>
+   <div class="out" id="o4">введи здоровье и нажми кнопку</div>
+   <div class="note dim">Проверь себя: при каком здоровье скорость станет вдвое меньше и почему именно так?</div>`,
+  // 5
+  `<h1>Сигнал: «я сделал» — «тогда я сделаю»</h1>
+   <p>Узлы не должны знать друг о друге. Вместо этого один узел <b>испускает сигнал</b> («меня нажали»,
+   «я умер», «я вошёл в зону»), а другой <b>подключает обработчик</b> — функцию, которая сработает
+   на этот сигнал. Связь называется <code>connect</code>.</p>
+   <p>Так делается и диалог: игрок вошёл в зону NPC → NPC испустил сигнал → сцена показала реплику.
+   Никто никого не вызывает напрямую.</p>
+   <div class="row"><button id="b5">игрок нажал кнопку у двери</button></div>
+   <div class="out" id="o5">нажми кнопку — увидишь цепочку сигнал → обработчик</div>
+   <div class="note dim">Дальше — игра на 6 раундов: там надо предсказывать, что напечатает код. Балла она не даёт.</div>`
+];
+
+function render() {
+  document.getElementById('content').innerHTML = S[cur];
+  document.getElementById('hint').textContent = `Экран ${cur + 1} из ${TOTAL}`;
+  document.getElementById('steps').innerHTML = Array.from({length: TOTAL}, (_, i) =>
+    `<i class="${i <= cur ? 'on' : ''}"></i>`).join('');
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').textContent = cur === TOTAL - 1 ? 'к игре →' : 'далее →';
+  wire();
+}
+
+function wire() {
+  const q = (id) => document.getElementById(id);
+  if (q('b1')) q('b1').onclick = () => {
+    q('o1').innerHTML = `<span class="tree">Мир <span>(Node2D, корень сцены)</span>\n` +
+      `├── Комната <span>(Node2D)</span>\n` +
+      `│   └── Дверь <span>(Area2D)</span>\n` +
+      `└── Игрок <span>(CharacterBody2D, со скриптом)</span>\n` +
+      `    └── Спрайт <span>(Sprite2D — картинка)</span></span>\n\n` +
+      `всего узлов: 5 · корень: Мир · листья: Дверь, Спрайт`;
+  };
+  if (q('b2')) q('b2').onclick = () => {
+    q('o2').textContent = `# файл player.gd — скрипт висит на узле Игрок\n` +
+      `extends CharacterBody2D\n\n` +
+      `func _ready() -> void:\n` +
+      `    print("игрок готов")\n\n` +
+      `# консоль при запуске сцены:\n` +
+      `игрок готов`;
+  };
+  if (q('b3')) q('b3').onclick = () => {
+    q('o3').textContent = `# порядок вывода при запуске сцены\n` +
+      `дверь готова\n` +
+      `игрок готов\n` +
+      `мир готов\n\n` +
+      `# дети раньше родителя: Дверь и Игрок ниже Мира в дереве,\n` +
+      `# поэтому их _ready срабатывает первым`;
+  };
+  if (q('b4')) q('b4').onclick = () => {
+    const hp = Number(q('hp').value);
+    const slow = hp < 20;
+    q('o4').textContent =
+      `var health = ${hp}\n` +
+      `var speed = 300\n` +
+      `if health < 20:\n    speed = 150\n\n` +
+      `health = ${hp} → ${slow ? 'условие истинно, скорость 150 (вдвое меньше)' : 'условие ложно, скорость остаётся 300'}`;
+  };
+  if (q('b5')) q('b5').onclick = () => {
+    q('o5').textContent = `# узел Дверь\nsignal opened            # «меня открыли»\n\n` +
+      `# узел Мир (родитель)\nfunc _ready() -> void:\n` +
+      `    $Комната/Дверь.opened.connect(_on_door_opened)\n\n` +
+      `func _on_door_opened() -> void:\n` +
+      `    print("дверь открыта: обработчик на Мире сработал")\n\n` +
+      `# нажатие → Дверь испустила opened → Мир поймал и напечатал:\n` +
+      `дверь открыта: обработчик на Мире сработал`;
+  };
+}
+
+document.getElementById('prev').onclick = () => { if (cur > 0) { cur--; render(); } };
+document.getElementById('next').onclick = async () => {
+  if (cur < TOTAL - 1) { cur++; render(); return; }
+  // последний экран: проверяем, что сервер жив, и уходим на игру
+  try {
+    const r = await fetch('/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: 'lesson', total: TOTAL, finished: true }) });
+    if (!r.ok) throw new Error('bad');
+    location.href = '/game.html';
+  } catch (e) {
+    document.getElementById('content').innerHTML =
+      `<h1>Сервер тренажёра закрыт</h1><p>Урок пройден, но страница не может перейти к игре: сервер уже не отвечает.</p>
+       <p class="dim">Запусти start.cmd заново, обнови вкладку и нажми «далее» ещё раз.</p>
+       <div class="row"><button id="retry">проверить снова</button></div>
+       <div class="out" id="ro">проверка не запускалась</div>`;
+    document.getElementById('retry').onclick = async () => {
+      try {
+        const r = await fetch('/progress', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page: 'lesson', total: TOTAL, finished: true }) });
+        if (r.ok) location.href = '/game.html'; else throw new Error('bad');
+      } catch (e2) { document.getElementById('ro').textContent = 'всё ещё не отвечает: сервер не поднят'; }
+    };
+  }
+};
+render();
+</script>
+</body>
+</html>

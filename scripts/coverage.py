@@ -203,23 +203,42 @@ def run_checks(study: Path) -> None:
 
 # --- самопроверка гейта -------------------------------------------------------------
 
+class SkipControl(Exception):
+    """Дефект неприменим к этому инстансу — печатаем n/a, а не притворяемся, что поймали."""
+
+
 def mutate(tree: Path, kind: str) -> None:
     man_p = tree / "coverage.json"
     man = json.loads(read(man_p))
+    lesson = tree / "web" / "lesson.html"
+    lesson_text = read(lesson) if lesson.is_file() else ""
+    qnums = sorted((man.get("questions") or {}), key=int)
+    first_q = man["questions"][qnums[0]]
     if kind == "вопрос про невыученное":
-        man["questions"]["1"]["asks"].append("cumsum")
+        # Навык, которого нет ни на одном экране: должен покраснеть на «покрыт ли asks экраном».
+        first_q["asks"].append("zzz_невыученное")
         blk = tree / "current.txt"
-        blk.write_text(read(blk).replace("x.sum()", "x.cumsum()"), encoding="utf-8")
+        if blk.is_file():
+            blk.write_text(read(blk) + "\n\nконтроль: zzz_невыученное\n", encoding="utf-8")
     elif kind == "ложный teaches":
-        man["screens"][0]["teaches"].append("einsum")
+        man["screens"][0].setdefault("teaches", []).append("zzz_нет_в_уроке")
     elif kind == "экран без ручки":
-        for scr in man["screens"]:
-            if "sum(axis=0)" in (scr.get("teaches") or []):
-                scr["handle"] = ""
+        # Убираем ручку у экрана, который обязан покрывать первый asks вопроса 1.
+        ask = (first_q.get("asks") or [""])[0]
+        hit = [s for s in man["screens"] if ask and ask in (s.get("teaches") or [])]
+        if not hit:
+            raise SkipControl("нет экрана, покрывающего первый asks")
+        for scr in hit:
+            scr["handle"] = ""
     elif kind == "число, которого не было":
         kp = key_of(tree)
-        kp.write_text(read(kp).replace("[5, 7, 9]", "[5, 7, 999]").replace("[6, 15]", "[6, 999]"),
-                      encoding="utf-8")
+        text = read(kp)
+        nums = [n for n in re.findall(r"\d{2,}", text) if n in lesson_text]
+        if not nums:
+            raise SkipControl("в ключе нет чисел из урока — числовой контроль неприменим")
+        # Меняем одно число ключа на заведомо отсутствующее в уроке: гейт обязан заметить.
+        text = text.replace(nums[0], "987654", 1)
+        kp.write_text(text, encoding="utf-8")
     man_p.write_text(json.dumps(man, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -240,7 +259,11 @@ def run_controls(study: Path) -> bool:
         for kind in CONTROLS:
             tree = Path(tmp) / re.sub(r"\W+", "_", kind)
             shutil.copytree(study, tree)
-            mutate(tree, kind)
+            try:
+                mutate(tree, kind)
+            except SkipControl as why:
+                print(f"  дефект «{kind}» -> n/a ({why})")
+                continue
             r = subprocess.run([sys.executable, __file__, "--study", str(tree), "--no-controls"],
                                capture_output=True, text=True)
             caught = r.returncode == 1

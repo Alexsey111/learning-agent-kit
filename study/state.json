@@ -1,0 +1,33 @@
+{
+  "track": "godot-story-track",
+  "learner": "школьник, 8 класс (14 лет)",
+  "session": 1,
+  "phase": "zero",
+  "status": "active",
+  "current_topic": "godot_basics",
+  "topics_order": ["godot_basics", "code_basics", "input_and_movement", "dialogue_and_choice", "inventory_and_save"],
+  "mode": {
+    "hours_per_week": 7,
+    "session_minutes": 30,
+    "window": "20:00-21:00",
+    "hard_stop": "21:00"
+  },
+  "gaps": [],
+  "review_queue": [],
+  "rules": {
+    "max_new_gaps_per_session": 2,
+    "review_offsets": [3, 10],
+    "questions_per_block": "первый блок после урока — 3 вопроса, дальше 6-8",
+    "max_razborov_per_session": 2,
+    "max_blocks_per_day": 1
+  },
+  "history": [
+    {
+      "session": 0,
+      "date": "2026-11-24",
+      "event": "анкета заполнена, план собран: 5 тем, 17 занятий, нулевой старт без диагностики"
+    }
+  ],
+  "razbor": {},
+  "next_step": "урок 0 (5 экранов: сцена, узел, скрипт, порядок _ready, сигнал), затем игра на 6 раундов, затем блок 1 из 3 вопросов"
+}

@@ -49,6 +49,9 @@ KEY_Q_ALT_RE = re.compile(r"^===\s*(\d+)\.")
 EXPECT_RE = re.compile(r"^\s*ожидаю\s*:\s*(.+)$", re.M | re.I)
 ORACLE_RE = re.compile(r"^\s*oracle\s*:\s*(.+)$", re.M | re.I)
 QUESTIONS_RE = re.compile(r"^\s*вопросы\s*:\s*(.+)$", re.M | re.I)
+TYPE_RE = re.compile(r"^\s*тип\s*:\s*(\w+)", re.M | re.I)
+CRIT_RE = re.compile(r"^\s*критерии\s*:\s*$", re.M | re.I)
+NON_NUMERIC = {"rubric", "source", "checklist"}
 
 
 def check(cond: bool, msg: str) -> None:
@@ -121,6 +124,46 @@ def run_checks(study: Path) -> None:
             check(False, f"блок {num}: нет keys/block_{num}_oracle.md — числа ключа ничем не проверены")
             continue
         text = read(doc)
+        typ = (TYPE_RE.search(text).group(1).lower() if TYPE_RE.search(text) else "numeric")
+        qm = QUESTIONS_RE.search(text)
+        declared = sorted({int(x) for x in re.findall(r"\d+", qm.group(1))}) if qm else []
+        check(declared == qs, f"блок {num}: вопросы паспорта {declared} = вопросы ключа {qs}")
+
+        if typ in NON_NUMERIC:
+            # Не числовой блок: числа проверять нечем, значит проверяется рубрика с якорями.
+            # Якорь — пример ответа на каждый уровень: без примеров оценка вкусовая,
+            # и «2» ставится за настроение, а не за ответ.
+            print(f"  ..   блок {num}: тип {typ} — проверяется рубрика, а не оракул")
+            crit = []
+            m_crit = CRIT_RE.search(text)
+            if m_crit:
+                for line in text[m_crit.end():].split("\n"):
+                    if not line.strip():
+                        if crit:
+                            break
+                        continue
+                    if re.match(r"^\s*[-*•]\s+\S", line):
+                        crit.append(line)
+                    elif crit:
+                        break
+            check(len(crit) >= 2, f"блок {num}: критериев оценки {len(crit)} (нужно 2 и больше)")
+            anchors = []
+            for q in qs:
+                sect = re.search(rf"^\s*{q}\.\s*\(2(?:\s*балла)?\)", key_text, re.M)
+                if not sect:
+                    anchors.append(0)
+                    continue
+                tail = key_text[sect.end():]
+                nxt = re.search(rf"^\s*{q + 1}\.\s*\(2", tail, re.M)
+                body = tail[:nxt.start()] if nxt else tail
+                anchors.append(len(re.findall(r"^\s*пример\b", body, re.M)))
+            check(all(a >= 1 for a in anchors),
+                  f"блок {num}: в ключе есть якоря-примеры на каждый вопрос ({anchors})")
+            check(sum(anchors) >= len(qs) * 2,
+                  f"блок {num}: якорей {sum(anchors)} — хотя бы по одному на уровень, "
+                  f"иначе шкала вкусовая")
+            continue
+
         m = ORACLE_RE.search(text)
         check(bool(m), f"блок {num}: в паспорте объявлен скрипт (oracle:)")
         if not m:
@@ -129,10 +172,6 @@ def run_checks(study: Path) -> None:
         check(script.is_file(), f"блок {num}: скрипт {m.group(1).strip()} существует")
         if not script.is_file():
             continue
-
-        qm = QUESTIONS_RE.search(text)
-        declared = sorted({int(x) for x in re.findall(r"\d+", qm.group(1))}) if qm else []
-        check(declared == qs, f"блок {num}: вопросы паспорта {declared} = вопросы ключа {qs}")
 
         expects = [e.strip().strip("`") for e in EXPECT_RE.findall(text)]
         check(len(expects) >= 3, f"блок {num}: ожиданий {len(expects)} (нужно 3 и больше)")
@@ -164,6 +203,19 @@ class SkipControl(Exception):
 
 def mutate(tree: Path, kind: str) -> None:
     doc = tree / "keys" / "block_1_oracle.md"
+    script_p = tree / "oracle" / "tensors_oracle.py"
+    text0 = read(doc) if doc.is_file() else ""
+    is_rubric = "rubric" in text0.lower()
+    if kind == "rubric без якорей":
+        if not is_rubric:
+            raise SkipControl("паспорт не рубричный")
+        kp = tree / "keys" / "block_1_key.txt"
+        nl = chr(10)
+        lines = [ln for ln in read(kp).split(nl) if not ln.strip().startswith("пример")]
+        kp.write_text(nl.join(lines), encoding="utf-8")
+        return
+    if is_rubric or not script_p.is_file():
+        raise SkipControl("нет числового оракула: контроль неприменим")
     if kind == "нет паспорта чисел":
         sp = tree / "state.json"
         if sp.is_file():
@@ -186,7 +238,8 @@ def mutate(tree: Path, kind: str) -> None:
         script.write_text(src, encoding="utf-8")
 
 
-CONTROLS = ["нет паспорта чисел", "оракул считает другое", "ожидание не из ключа", "оракул падает"]
+CONTROLS = ["нет паспорта чисел", "оракул считает другое", "ожидание не из ключа",
+            "оракул падает", "rubric без якорей"]
 
 
 def run_controls(study: Path) -> bool:
