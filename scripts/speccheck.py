@@ -222,7 +222,11 @@ def check_study(study: Path, label: str) -> None:
         if log.is_file():
             rows = [json.loads(line) for line in read(log).split("\n") if line.strip()]
             finished = bool(rows) and bool(rows[-1].get("finished"))
-        check(not finished, f"флаг {flag} снят после финиша {name}_{state.get('session', 0)}")
+        if finished:
+            check(False, f"флаг {flag} висит, хотя {name}_{state.get('session', 0)} уже завершён — "
+                         f"страница откроется не та")
+        else:
+            check(True, f"флаг {flag} на месте, {name} ещё не пройден — откроется он")
 
 
 # --- самопроверка гейта -------------------------------------------------------------

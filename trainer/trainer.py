@@ -194,6 +194,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
+            # Пока висит флаг входа, корень ведёт на носитель: иначе урок откроют
+            # только те, кто помнит про /lesson.html, а бриф требует «носитель первым».
+            ahead = pending_page()
+            if ahead:
+                self.send_response(302)
+                self.send_header("Location", "/" + ahead)
+                self.send_header("Content-Length", "0")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
             try:
                 payload = parse_block(Cfg.current().read_text(encoding="utf-8"))
             except FileNotFoundError:
