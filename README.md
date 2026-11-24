@@ -42,6 +42,10 @@ study_example/          рабочий пример: Python-junior, блок 1 +
 examples/               второй пример другого направления (QA): блок + ключ
 scripts/selftest.py     самопроверка пакета: файлы, парсер, ключ, живой прогон тренажёра
 scripts/speccheck.py    проверки по брифу: блок, ключ, порядок «ключ до ответов», state, разборы
+scripts/coverage.py     урок покрывает блок: вопрос опирается на экран с ручкой (паспорт coverage.json)
+scripts/programcheck.py цепочка анкета → план → тема → клетки → блок
+scripts/numberscheck.py числа ключа воспроизводятся независимым оракулом (block_N_oracle.md)
+scripts/razborcheck.py  разбор провалов и второй заход после «не понял»
 start.cmd               запуск тренажёра на Windows (CRLF!)
 ```
 
@@ -53,6 +57,10 @@ start.cmd               запуск тренажёра на Windows (CRLF!)
    покрывать блок (паспорт `study/coverage.json`).
    Перед первой сессией — `python scripts/programcheck.py --study <инстанс>`: анкета → план →
    тема → клетки → блок сходятся между собой.
+   Перед выдачей блока — `python scripts/numberscheck.py --study <инстанс>`: числа ключа
+   воспроизводятся независимым оракулом (`keys/block_N_oracle.md` + скрипт).
+   После блока — `python scripts/razborcheck.py --study <инстанс>`: провалы разобраны, а на
+   «не понял» есть второй заход с задачей по шагам, а не пересказ.
 2. Прочитать `AGENT_BRIEF.md` целиком: это контракт.
 3. Заполнить анкету `INTAKE.md` с новым учеником → `study/INTAKE_filled.md`.
 4. Развернуть: `study/` = копия `study_example/` (для пробы) или `templates/state.json`
