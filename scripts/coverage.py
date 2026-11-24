@@ -74,7 +74,7 @@ def pick_study(name: str | None) -> Path:
     if name:
         p = Path(name)
         return p if p.is_absolute() else KIT / name
-    for candidate in ("study_tensors", "study_example"):
+    for candidate in ("study", "study_tensors", "study_example"):
         if (KIT / candidate).is_dir():
             return KIT / candidate
     return KIT / "study"
