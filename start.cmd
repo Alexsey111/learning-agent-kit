@@ -11,5 +11,5 @@ if not exist "%~dp0%STUDY%" (
   pause
   exit /b 2
 )
-python trainer	rainer.py --study "%~dp0%STUDY%"
+python "%~dp0trainer\trainer.py" --study "%~dp0%STUDY%"
 if errorlevel 1 pause

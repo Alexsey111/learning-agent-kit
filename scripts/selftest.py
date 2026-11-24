@@ -214,7 +214,21 @@ def main() -> int:
     print("5. start.cmd")
     cmd = (KIT / "start.cmd").read_bytes()
     check(cmd.startswith(b"@echo off"), "начинается с @echo off")
-    check(b"\r\n" in cmd and b"\n" not in cmd.replace(b"\r\n", b""), "переводы строк CRLF")
+    crlf, lf = bytes((13, 10)), bytes((10,))
+    check(crlf in cmd and lf not in cmd.replace(crlf, b""), "переводы строк CRLF")
+    # Табуляция в пути — не пробел: cmd её пропускает, python получает «trainer» вместо
+    # «trainer\trainer.py», окно живёт до pause, и выглядит это как «ничего не открылось».
+    check(b"\t" not in cmd, "в start.cmd нет символов табуляции")
+    text_cmd = cmd.decode("utf-8", "replace")
+    call = [ln for ln in text_cmd.splitlines() if ln.strip().lower().startswith("python ")]
+    check(len(call) == 1, f"одна строка запуска python (нашлось {len(call)})")
+    if len(call) == 1:
+        m = re.search(r'"%~dp0([^"]+\.py)"', call[0])
+        check(m is not None, "путь к скрипту в кавычках через %~dp0 (пробелы в пути)")
+        if m:
+            target = KIT / m.group(1).replace("\\", "/")
+            check(target.is_file(), f"скрипт по этому пути существует: {m.group(1)}")
+        check("--study" in call[0], "передан --study")
 
     print()
     print(f"Итог: ok {len(OK)}, провалов {len(FAIL)}")
